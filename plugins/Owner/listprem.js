@@ -1,37 +1,31 @@
 import ms from "parse-ms";
 
 let handler = async (m, { conn, setReply }) => {
-  let premium = Object.values(db.data.users);
-  let premiumCount = 0;
-  let data = db.data.users;
+  let premiumUsers = Object.entries(db.data.users).filter(([id, user]) => user.premiumTime && (user.premiumTime === Infinity || user.premiumTime > Date.now()));
+  let premiumCount = premiumUsers.length;
 
-  let txt = `╭─❑「 *📋 LIST PREMIUM* 」❑──\n│ 👑 *Total Premium:* ${premium.length}\n│ \n`;
+  let txt = `╭──❑「 *📋 PREMIUM USERS LIST* 」❑──\n`;
+  txt += `│ 👑 *Total Premium Users:* ${premiumCount}\n`;
+  txt += `╰❑───────────────────────❑\n\n`;
 
-  for (let key in data) {
-    if (data.hasOwnProperty(key)) {
-      let user = data[key];
-      if (user.premiumTime && !isNaN(user.premiumTime)) {
-        premiumCount++;
+  for (let [id, user] of premiumUsers) {
+    let isUnlimited = user.premiumTime === Infinity;
 
-        // Cek jika premiumTime bernilai Infinity
-        let isUnlimited = user.premiumTime === Infinity;
+    txt += `╭─❖\n`;
+    txt += `├👤 *Name:* ${user.name || "Unknown"}\n`;
+    txt += `├📱 *Number:* wa.me/${id.split("@")[0] || "Unknown"}\n`;
 
-        txt += `├👤 *Name :* ${user.name || "Tidak Diketahui"}\n`;
-        txt += `├📱 *Number :* wa.me/${user.id || "Tidak Diketahui"}\n`;
-        
-        // Jika premiumTime Infinity, tampilkan "Unlimited" saja
-        if (isUnlimited) {
-          txt += `├⏳ *Remaining Time :* Unlimited\n`;
-        } else {
-          let cekvip = ms(user.premiumTime - Date.now());
-          let cekbulan = Math.max(0, Math.floor(cekvip.days / 30));
-          let cekhari = Math.max(0, cekvip.days % 30);
-          txt += `├⏳ *Remaining Time :* ${cekbulan} Bulan ${cekhari} Hari ${cekvip.hours} Jam ${cekvip.minutes} Menit\n`;
-        }
-
-        txt += `╰❖––––––––––––––––––❖\n\n`;
-      }
+    if (isUnlimited) {
+      txt += `├⏳ *Remaining Time:* Unlimited\n`;
+    } else {
+      let remainingTime = user.premiumTime - Date.now();
+      let cekvip = ms(remainingTime);
+      let cekbulan = Math.max(0, Math.floor(cekvip.days / 30));
+      let cekhari = Math.max(0, cekvip.days % 30);
+      txt += `├⏳ *Remaining Time:* ${cekbulan} Months ${cekhari} Days ${cekvip.hours} Hours ${cekvip.minutes} Minutes\n`;
     }
+
+    txt += `╰❖───────────────────────❖\n\n`;
   }
 
   txt += `© Sanz X Herta`;
