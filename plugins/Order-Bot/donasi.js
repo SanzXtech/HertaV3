@@ -153,6 +153,7 @@ async function startChecking(conn, sender) {
                 `🙏 Terima kasih atas dukungan Anda! 💖`;
 
             await sendch(alertText, conn, {}, profilePicture); // Send alert with profile picture
+            await deleteQrisMessage(conn, conn.donate[sender]?.qrisMessageKey);
 
             // Send audio to channel
             const audioPath = "./media/audiodonasi.mp3"; // Local audio
@@ -200,19 +201,20 @@ let handler = async (m, { conn, text, prefix, command }) => {
     let qrBuffer = await qrisDinamis(amount.toString());
     const profilePicture = await getProfilePicture(conn, sender);
 
-    await conn.sendImage(m.chat, qrBuffer, 
-        `🎗️ *DONASI HERTA* 🎗️\n\n` +
-        `💰 *Jumlah:* Rp ${amount.toLocaleString("id-ID")}\n` +
-        `📌 Silakan scan *QRIS* di atas untuk menyelesaikan donasi.\n\n` +
-        `🙏 Terima kasih atas dukungan Anda! 💖`, 
-        m, { thumbnail: profilePicture }
-    );
+    const sent = await conn.sendImage(m.chat, qrBuffer, 
+    `🎗️ *DONASI HERTA* 🎗️\n\n` +
+    `💰 *Jumlah:* Rp ${amount.toLocaleString("id-ID")}\n` +
+    `📌 Silakan scan *QRIS* di atas untuk menyelesaikan donasi.\n\n` +
+    `🙏 Terima kasih atas dukungan Anda! 💖`, 
+    m, { thumbnail: profilePicture }
+);
 
-    conn.donate[sender] = {
-        amount,
-        time: Date.now(),
-        message: donorMessage
-    };
+conn.donate[sender] = {
+    amount,
+    time: Date.now(),
+    message: donorMessage,
+    qrisMessageKey: sent.key // Simpan ID pesan QRIS
+};
 
     global.donationSession = true; // Start global donation session
     startChecking(conn, sender).finally(() => {
@@ -264,3 +266,15 @@ const sendAudioToChannel = async (audioPath, conn) => {
         console.error(`❌ Error saat mengirim audio ke saluran: ${err.message}`);
     }
 };
+
+// Hapus pesan QRIS berdasarkan message key
+async function deleteQrisMessage(conn, key) {
+    try {
+        if (key) {
+            await conn.sendMessage(key.remoteJid, { delete: key });
+            console.log("🗑️ Pesan QRIS berhasil dihapus.");
+        }
+    } catch (err) {
+        console.error("❌ Gagal menghapus pesan QRIS:", err.message);
+    }
+}
