@@ -25,6 +25,7 @@
     "@bochilteam/scraper-sosmed": "^1.0.5",
     "@google/generative-ai": "^0.24.0",
     "@hapi/boom": "^10.0.1",
+    "@octokit/rest": "^22.0.0",
     "@vitalets/google-translate-api": "^9.2.0",
     "@xct007/frieren-scraper": "^0.0.2",
     "@xyzteams/scapers": "^0.0.5",
