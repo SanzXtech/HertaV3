@@ -1,18 +1,25 @@
-steps:
-  - name: Checkout
-    uses: actions/checkout@v3
+name: Manual Deploy to Heroku
 
-  - name: Setup Heroku CLI
-    run: curl https://cli-assets.heroku.com/install.sh | sh
+on:
+  workflow_dispatch:
 
-  - name: Login to Heroku
-    run: echo ${{ secrets.HEROKU_API_KEY }} | heroku auth:token
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
 
-  - name: Push Docker to Heroku
-    run: |
-      echo ${{ secrets.HEROKU_API_KEY }} | docker login --username=_ --password-stdin registry.heroku.com
-      docker build -t registry.heroku.com/herta/web .
-      docker push registry.heroku.com/herta/web
+      - name: Install Heroku CLI
+        run: curl https://cli-assets.heroku.com/install.sh | sh
 
-  - name: Release to Heroku
-    run: heroku container:release web --app herta
+      - name: Login to Heroku
+        run: echo "${{ secrets.HEROKU_API_KEY }}" | docker login --username=_ --password-stdin registry.heroku.com
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t registry.heroku.com/herta/web .
+          docker push registry.heroku.com/herta/web
+
+      - name: Release to Heroku
+        run: heroku container:release web --app herta
