@@ -11,22 +11,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Install Heroku CLI
-        run: curl https://cli-assets.heroku.com/install.sh | sh
-
-      - name: Login ke Heroku via HEROKU_API_KEY
-        env:
-          HEROKU_API_KEY: HRKU-8e68c006-b2e5-4d69-9ecc-7f9855cf2652
+      - name: Setup Git
         run: |
-          echo "$HEROKU_API_KEY" | heroku auth:token
-          heroku container:login
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
 
-      - name: Push ke Heroku Container
-        run: heroku container:push web --app herta
-        env:
-          HEROKU_API_KEY: HRKU-8e68c006-b2e5-4d69-9ecc-7f9855cf2652
+      - name: Add Heroku remote
+        run: |
+          git remote add heroku https://heroku:${{ secrets.HEROKU_API_KEY }}@git.heroku.com/herta.git
 
-      - name: Rilis Web Heroku
-        run: heroku container:release web --app herta
-        env:
-          HEROKU_API_KEY: HRKU-8e68c006-b2e5-4d69-9ecc-7f9855cf2652
+      - name: Push to Heroku
+        run: |
+          git push heroku HEAD:main --force
