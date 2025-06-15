@@ -14,14 +14,19 @@ jobs:
       - name: Install Heroku CLI
         run: curl https://cli-assets.heroku.com/install.sh | sh
 
-      - name: Setup Heroku Auth
+      - name: Login ke Heroku via HEROKU_API_KEY
+        env:
+          HEROKU_API_KEY: HRKU-8e68c006-b2e5-4d69-9ecc-7f9855cf2652
         run: |
-          echo "machine api.heroku.com\n  login listyaromalia@pesawaran.live\n  password HRKU-8e68c006-b2e5-4d69-9ecc-7f9855cf2652" > ~/.netrc
-          echo "machine git.heroku.com\n  login listyaromalia@pesawaran.live\n  password HRKU-8e68c006-b2e5-4d69-9ecc-7f9855cf2652" >> ~/.netrc
+          echo "$HEROKU_API_KEY" | heroku auth:token
           heroku container:login
 
       - name: Push ke Heroku Container
         run: heroku container:push web --app herta
+        env:
+          HEROKU_API_KEY: HRKU-8e68c006-b2e5-4d69-9ecc-7f9855cf2652
 
       - name: Rilis Web Heroku
         run: heroku container:release web --app herta
+        env:
+          HEROKU_API_KEY: HRKU-8e68c006-b2e5-4d69-9ecc-7f9855cf2652
