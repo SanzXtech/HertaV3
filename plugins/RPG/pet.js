@@ -6,7 +6,7 @@ let handler = async (m, { conn, args, usedPrefix }) => {
         let percentage = Math.min(currentExp / requiredExp, 1);
         let filledBars = Math.floor(percentage * length);
         let emptyBars = length - filledBars;
-        return '█'.repeat(filledBars) + '░'.repeat(emptyBars);
+        return '▰'.repeat(filledBars) + '▱'.repeat(emptyBars)
     }
 
     // Function to get exp requirements based on pet rarity
