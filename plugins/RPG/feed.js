@@ -47,7 +47,7 @@ let dino = global.db.data.users[m.sender].dino;
 let tano = global.db.data.users[m.sender].tano;
 
 // Function to create exp bar
-function createExpBar(currentExp, requiredExp, length = 10) {
+function createExpBar(currentExp, requiredExp, length = 15) {
 let percentage = Math.min(currentExp / requiredExp, 1);
 let filledBars = Math.floor(percentage * length);
 let emptyBars = length - filledBars;
@@ -92,16 +92,14 @@ user.foxlastfeed = new Date() * 1;
 let requiredExp = getExpRequirement(rubah, 'common');
 let expBar = createExpBar(user.foxexp, requiredExp);
 let feedsNeeded = Math.ceil((requiredExp - user.foxexp) / expGain);
+let percentage = Math.floor((user.foxexp/requiredExp)*100);
 
 m.reply(
-`ғᴇᴇᴅɪɴɢ ${type}...
-*${emo} ${type.capitalize()}:* ${pesan}
+`🦊 Feeding fox...
 
-📊 *Pet Status:*
-🔸 Level: ${rubah}
-🔸 EXP: ${user.foxexp}/${requiredExp}
-🔸 Progress: ${expBar} (${Math.floor((user.foxexp/requiredExp)*100)}%)
-🔸 Feeds needed for next level: ${feedsNeeded > 0 ? feedsNeeded : 0}`
+🚀 LEVEL: ${rubah}
+📊 EXP: [${expBar}] ${user.foxexp}/${requiredExp} ( ${percentage}% )
+🧪 Feed ${feedsNeeded > 0 ? feedsNeeded : 0}x lagi untuk naik level.`
 );
 
 if (rubah > 0) {
@@ -134,16 +132,14 @@ user.catlastfeed = new Date() * 1;
 let requiredExp = getExpRequirement(kucing, 'common');
 let expBar = createExpBar(user.catexp, requiredExp);
 let feedsNeeded = Math.ceil((requiredExp - user.catexp) / expGain);
+let percentage = Math.floor((user.catexp/requiredExp)*100);
 
 m.reply(
-`ғᴇᴇᴅɪɴɢ ${type}...
-*${emo} ${type.capitalize()}:* ${pesan}
+`🐈 Feeding cat...
 
-📊 *Pet Status:*
-🔸 Level: ${kucing}
-🔸 EXP: ${user.catexp}/${requiredExp}
-🔸 Progress: ${expBar} (${Math.floor((user.catexp/requiredExp)*100)}%)
-🔸 Feeds needed for next level: ${feedsNeeded > 0 ? feedsNeeded : 0}`
+🚀 LEVEL: ${kucing}
+📊 EXP: [${expBar}] ${user.catexp}/${requiredExp} ( ${percentage}% )
+🧪 Feed ${feedsNeeded > 0 ? feedsNeeded : 0}x lagi untuk naik level.`
 );
 
 if (kucing > 0) {
@@ -176,16 +172,14 @@ user.doglastfeed = new Date() * 1;
 let requiredExp = getExpRequirement(anjing, 'common');
 let expBar = createExpBar(user.dogexp, requiredExp);
 let feedsNeeded = Math.ceil((requiredExp - user.dogexp) / expGain);
+let percentage = Math.floor((user.dogexp/requiredExp)*100);
 
 m.reply(
-`ғᴇᴇᴅɪɴɢ *${type}*...
-*${emo} ${type.capitalize()}:* ${pesan}
+`🐕 Feeding dog...
 
-📊 *Pet Status:*
-🔸 Level: ${anjing}
-🔸 EXP: ${user.dogexp}/${requiredExp}
-🔸 Progress: ${expBar} (${Math.floor((user.dogexp/requiredExp)*100)}%)
-🔸 Feeds needed for next level: ${feedsNeeded > 0 ? feedsNeeded : 0}`
+🚀 LEVEL: ${anjing}
+📊 EXP: [${expBar}] ${user.dogexp}/${requiredExp} ( ${percentage}% )
+🧪 Feed ${feedsNeeded > 0 ? feedsNeeded : 0}x lagi untuk naik level.`
 );
 
 if (anjing > 0) {
@@ -218,16 +212,14 @@ user.dragonlastfeed = new Date() * 1;
 let requiredExp = getExpRequirement(naga, 'common');
 let expBar = createExpBar(user.dragonexp, requiredExp);
 let feedsNeeded = Math.ceil((requiredExp - user.dragonexp) / expGain);
+let percentage = Math.floor((user.dragonexp/requiredExp)*100);
 
 m.reply(
-`ғᴇᴇᴅɪɴɢ *${type}*...
-*${emo} ${type.capitalize()}:* ${pesan}
+`🐲 Feeding dragon...
 
-📊 *Pet Status:*
-🔸 Level: ${naga}
-🔸 EXP: ${user.dragonexp}/${requiredExp}
-🔸 Progress: ${expBar} (${Math.floor((user.dragonexp/requiredExp)*100)}%)
-🔸 Feeds needed for next level: ${feedsNeeded > 0 ? feedsNeeded : 0}`
+🚀 LEVEL: ${naga}
+📊 EXP: [${expBar}] ${user.dragonexp}/${requiredExp} ( ${percentage}% )
+🧪 Feed ${feedsNeeded > 0 ? feedsNeeded : 0}x lagi untuk naik level.`
 );
 
 if (naga > 0) {
@@ -260,16 +252,14 @@ user.horselastfeed = new Date() * 1;
 let requiredExp = getExpRequirement(kuda, 'common');
 let expBar = createExpBar(user.horseexp, requiredExp);
 let feedsNeeded = Math.ceil((requiredExp - user.horseexp) / expGain);
+let percentage = Math.floor((user.horseexp/requiredExp)*100);
 
 m.reply(
-`ғᴇᴇᴅɪɴɢ *${type}*...
-*${emo} ${type.capitalize()}:* ${pesan}
+`🐴 Feeding horse...
 
-📊 *Pet Status:*
-🔸 Level: ${kuda}
-🔸 EXP: ${user.horseexp}/${requiredExp}
-🔸 Progress: ${expBar} (${Math.floor((user.horseexp/requiredExp)*100)}%)
-🔸 Feeds needed for next level: ${feedsNeeded > 0 ? feedsNeeded : 0}`
+🚀 LEVEL: ${kuda}
+📊 EXP: [${expBar}] ${user.horseexp}/${requiredExp} ( ${percentage}% )
+🧪 Feed ${feedsNeeded > 0 ? feedsNeeded : 0}x lagi untuk naik level.`
 );
 
 if (kuda > 0) {
@@ -302,16 +292,14 @@ user.robolastfeed = new Date() * 1;
 let requiredExp = getExpRequirement(robot, 'common');
 let expBar = createExpBar(user.roboexp, requiredExp);
 let feedsNeeded = Math.ceil((requiredExp - user.roboexp) / expGain);
+let percentage = Math.floor((user.roboexp/requiredExp)*100);
 
 m.reply(
-`ғᴇᴇᴅɪɴɢ *${type}*...
-*${emo} ${type.capitalize()}:* ${pesan}
+`🤖 Feeding robo...
 
-📊 *Pet Status:*
-🔸 Level: ${robot}
-🔸 EXP: ${user.roboexp}/${requiredExp}
-🔸 Progress: ${expBar} (${Math.floor((user.roboexp/requiredExp)*100)}%)
-🔸 Feeds needed for next level: ${feedsNeeded > 0 ? feedsNeeded : 0}`
+🚀 LEVEL: ${robot}
+📊 EXP: [${expBar}] ${user.roboexp}/${requiredExp} ( ${percentage}% )
+🧪 Feed ${feedsNeeded > 0 ? feedsNeeded : 0}x lagi untuk naik level.`
 );
 
 if (robot > 0) {
@@ -345,17 +333,14 @@ user.unicornlastfeed = new Date() * 1;
 let requiredExp = getExpRequirement(unicorn, 'rare');
 let expBar = createExpBar(user.unicornexp, requiredExp);
 let feedsNeeded = Math.ceil((requiredExp - user.unicornexp) / expGain);
+let percentage = Math.floor((user.unicornexp/requiredExp)*100);
 
 m.reply(
-`ғᴇᴇᴅɪɴɢ *${type}*... ✨
-*${emo} ${type.capitalize()}:* ${pesan}
+`🦄 Feeding unicorn...
 
-📊 *Pet Status (RARE):*
-🔸 Level: ${unicorn}
-🔸 EXP: ${user.unicornexp}/${requiredExp}
-🔸 Progress: ${expBar} (${Math.floor((user.unicornexp/requiredExp)*100)}%)
-🔸 Feeds needed for next level: ${feedsNeeded > 0 ? feedsNeeded : 0}
-🔸 Rarity: ⭐ RARE - Slower leveling but more powerful!`
+🚀 LEVEL: ${unicorn}
+📊 EXP: [${expBar}] ${user.unicornexp}/${requiredExp} ( ${percentage}% )
+🧪 Feed ${feedsNeeded > 0 ? feedsNeeded : 0}x lagi untuk naik level.`
 );
 
 if (unicorn > 0) {
@@ -388,17 +373,14 @@ user.dinolastfeed = new Date() * 1;
 let requiredExp = getExpRequirement(dino, 'rare');
 let expBar = createExpBar(user.dinoexp, requiredExp);
 let feedsNeeded = Math.ceil((requiredExp - user.dinoexp) / expGain);
+let percentage = Math.floor((user.dinoexp/requiredExp)*100);
 
 m.reply(
-`ғᴇᴇᴅɪɴɢ *${type}*... 🦴
-*${emo} ${type.capitalize()}:* ${pesan}
+`🦖 Feeding dino...
 
-📊 *Pet Status (RARE):*
-🔸 Level: ${dino}
-🔸 EXP: ${user.dinoexp}/${requiredExp}
-🔸 Progress: ${expBar} (${Math.floor((user.dinoexp/requiredExp)*100)}%)
-🔸 Feeds needed for next level: ${feedsNeeded > 0 ? feedsNeeded : 0}
-🔸 Rarity: ⭐ RARE - Slower leveling but more powerful!`
+🚀 LEVEL: ${dino}
+📊 EXP: [${expBar}] ${user.dinoexp}/${requiredExp} ( ${percentage}% )
+🧪 Feed ${feedsNeeded > 0 ? feedsNeeded : 0}x lagi untuk naik level.`
 );
 
 if (dino > 0) {
@@ -431,17 +413,14 @@ user.tanolastfeed = new Date() * 1;
 let requiredExp = getExpRequirement(tano, 'legendary');
 let expBar = createExpBar(user.tanoexp, requiredExp);
 let feedsNeeded = Math.ceil((requiredExp - user.tanoexp) / expGain);
+let percentage = Math.floor((user.tanoexp/requiredExp)*100);
 
 m.reply(
-`ғᴇᴇᴅɪɴɢ *${type}*... 🌟✨🌟
-*${emo} ${type.capitalize()}:* ${pesan}
+`🦕 Feeding tano...
 
-📊 *Pet Status (LEGENDARY):*
-🔸 Level: ${tano}
-🔸 EXP: ${user.tanoexp}/${requiredExp}
-🔸 Progress: ${expBar} (${Math.floor((user.tanoexp/requiredExp)*100)}%)
-🔸 Feeds needed for next level: ${feedsNeeded > 0 ? feedsNeeded : 0}
-🔸 Rarity: 🌟 LEGENDARY - Very slow leveling but extremely powerful!`
+🚀 LEVEL: ${tano}
+📊 EXP: [${expBar}] ${user.tanoexp}/${requiredExp} ( ${percentage}% )
+🧪 Feed ${feedsNeeded > 0 ? feedsNeeded : 0}x lagi untuk naik level.`
 );
 
 if (tano > 0) {
@@ -449,7 +428,7 @@ let naiklvl = getExpRequirement(tano, 'legendary') - 1;
 if (user.tanoexp > naiklvl) {
 user.tano += 1;
 user.tanoexp = 0;
-m.reply(`🌟✨ *ᴄᴏɴɢʀᴀᴛs!* ✨🌟, ʏᴏᴜʀ LEGENDARY ᴘᴇᴛ ʟᴇᴠᴇʟᴜᴘ to Level ${user.tano}!`);
+m.reply(`🦴 *ᴄᴏɴɢʀᴀᴛs* 🦴, ʏᴏᴜʀ RARE ᴘᴇᴛ ʟᴇᴠᴇʟᴜᴘ to Level ${user.tano}!`);
 }
 }
 } else m.reply("ʏᴏᴜʀ ᴘᴇᴛ ғᴏᴏᴅ ɴᴏᴛ ᴇɴᴏᴜɢʜ");
