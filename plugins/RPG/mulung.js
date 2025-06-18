@@ -5,11 +5,11 @@ let handler = async (m, { conn, usedPrefix, text }) => {
     throw `Anda sudah lelah untuk mulung\nTunggu selama ${msToTime(
       time - new Date()
     )} lagi`;
-  let botol = `${Math.floor(Math.random() * 1000)}`.trim();
-  let kaleng = `${Math.floor(Math.random() * 1000)}`.trim();
-  let kardus = `${Math.floor(Math.random() * 1000)}`.trim();
-  let gelas = `${Math.floor(Math.random() * 1000)}`.trim();
-  let plastik = `${Math.floor(Math.random() * 1000)}`.trim();
+  let botol = `${Math.floor(Math.random() * 100)}`.trim();
+  let kaleng = `${Math.floor(Math.random() * 100)}`.trim();
+  let kardus = `${Math.floor(Math.random() * 100)}`.trim();
+  let gelas = `${Math.floor(Math.random() * 100)}`.trim();
+  let plastik = `${Math.floor(Math.random() * 100)}`.trim();
 
   user.botol += botol * 1;
   user.kaleng += kaleng * 1;
