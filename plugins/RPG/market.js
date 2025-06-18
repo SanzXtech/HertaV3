@@ -1,4 +1,5 @@
 import { readFileSync } from 'fs';
+import moment from 'moment-timezone';
 
 // Function untuk membuat thumbnail
 function thumbnail(url) {
@@ -23,11 +24,101 @@ function fkontak(conn, m) {
     };
 }
 
+// Fungsi untuk mengecek jam trading
+function isTradingHours() {
+    const now = moment().tz('Asia/Jakarta');
+    const currentHour = now.hour();
+    const currentMinute = now.minute();
+    const dayOfWeek = now.day(); // 0 = Sunday, 6 = Saturday
+    
+    // Trading hours: Senin-Jumat 09:00-15:30 WIB
+    const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+    
+    // Cek apakah waktu sudah lewat jam 9:00
+    const afterOpen = currentHour > 9 || (currentHour === 9 && currentMinute >= 0);
+    // Cek apakah waktu sebelum jam 15:30
+    const beforeClose = currentHour < 15 || (currentHour === 15 && currentMinute <= 30);
+    
+    return isWeekday && afterOpen && beforeClose;
+}
+
+// Fungsi untuk menghitung biaya trading
+function calculateTradingFees(totalAmount, action) {
+    const fees = {};
+    
+    if (action === 'beli') {
+        // Broker fee untuk beli: 0.15% - 0.3%
+        fees.brokerFee = Math.round(totalAmount * 0.0015); // 0.15%
+        fees.adminFee = 5000; // Biaya administrasi flat
+        fees.totalFees = fees.brokerFee + fees.adminFee;
+        fees.totalCost = totalAmount + fees.totalFees;
+    } else if (action === 'jual') {
+        // Broker fee untuk jual: 0.25%
+        fees.brokerFee = Math.round(totalAmount * 0.0025); // 0.25%
+        // Pajak untuk jual: 0.1%
+        fees.tax = Math.round(totalAmount * 0.001); // 0.1%
+        fees.adminFee = 5000; // Biaya administrasi flat
+        fees.totalFees = fees.brokerFee + fees.tax + fees.adminFee;
+        fees.netAmount = totalAmount - fees.totalFees;
+    }
+    
+    return fees;
+}
+
+// Fungsi untuk format waktu trading
+function getTradingTimeInfo() {
+    const now = moment().tz('Asia/Jakarta');
+    const isOpen = isTradingHours();
+    const dayOfWeek = now.day();
+    
+    if (isOpen) {
+        const closeTime = moment().tz('Asia/Jakarta').hour(15).minute(30).second(0);
+        const timeToClose = moment.duration(closeTime.diff(now));
+        return {
+            status: '🟢 MARKET BUKA',
+            info: `Tutup dalam ${timeToClose.hours()}j ${timeToClose.minutes()}m`,
+            canTrade: true
+        };
+    } else {
+        let nextOpen = moment().tz('Asia/Jakarta');
+        
+        // Jika hari weekday tapi belum jam 9:00, buka hari ini jam 9:00
+        if (dayOfWeek >= 1 && dayOfWeek <= 5 && now.hour() < 9) {
+            nextOpen.hour(9).minute(0).second(0);
+        }
+        // Jika hari weekday tapi sudah lewat jam 15:30, buka besok jam 9:00
+        else if (dayOfWeek >= 1 && dayOfWeek <= 4) { // Senin-Kamis
+            nextOpen.add(1, 'day').hour(9).minute(0).second(0);
+        }
+        // Jika hari Jumat dan sudah tutup, buka Senin
+        else if (dayOfWeek === 5) {
+            nextOpen.add(3, 'days').hour(9).minute(0).second(0); // Loncat ke Senin
+        }
+        // Jika weekend (Sabtu)
+        else if (dayOfWeek === 6) {
+            nextOpen.add(2, 'days').hour(9).minute(0).second(0); // Loncat ke Senin
+        }
+        // Jika weekend (Minggu)
+        else if (dayOfWeek === 0) {
+            nextOpen.add(1, 'day').hour(9).minute(0).second(0); // Loncat ke Senin
+        }
+        
+        return {
+            status: '🔴 MARKET TUTUP',
+            info: `Buka: ${nextOpen.format('dddd, DD/MM HH:mm')} WIB`,
+            canTrade: false
+        };
+    }
+}
+
 // Fungsi untuk mengupdate harga saham secara periodik
 function updateStockPrices() {
     const settings = global.db.data.settings["settingbot"];
 
     setInterval(() => {
+        // Hanya update saat jam trading
+        if (!isTradingHours()) return;
+        
         // Update harga dengan fluktuasi random ±5%
         const fluctuation = () => (Math.random() * 0.1) - 0.05; // -5% to +5%
 
@@ -53,7 +144,6 @@ async function handler(m, { conn, command, args, usedPrefix }) {
     const user = global.db.data.users[m.sender];
     const settings = global.db.data.settings["settingbot"];
 
-
     // Inisialisasi harga saham jika belum ada
     if (!("bbcaNormalPrice" in settings)) settings.bbcaNormalPrice = 10150;
     if (!("bbriNormalPrice" in settings)) settings.bbriNormalPrice = 4750;
@@ -75,6 +165,9 @@ async function handler(m, { conn, command, args, usedPrefix }) {
     const stock = args[1]?.toLowerCase();
     const amount = parseInt(args[2]) || 1;
 
+    // Get trading time info
+    const tradingInfo = getTradingTimeInfo();
+
     // Fungsi untuk menghitung status naik/turun
     const calculateStatus = (price, normalPrice) => {
         const diffPercent = ((price - normalPrice) / normalPrice * 100).toFixed(2);
@@ -92,7 +185,10 @@ async function handler(m, { conn, command, args, usedPrefix }) {
 
     if (!action) {
         // Menu market utama dengan harga saham
-        let priceList = '📈 *MARKET SAHAM REAL-TIME*\n\n';
+        const currentTime = moment().tz('Asia/Jakarta').format('DD/MM/YYYY HH:mm:ss');
+        let priceList = `📈 *MARKET SAHAM REAL-TIME*\n`;
+        priceList += `🕐 ${currentTime} WIB\n`;
+        priceList += `${tradingInfo.status} | ${tradingInfo.info}\n\n`;
 
         for (const [key, stockData] of Object.entries(stocks)) {
             const currentPrice = settings[stockData.priceKey];
@@ -105,7 +201,13 @@ async function handler(m, { conn, command, args, usedPrefix }) {
             priceList += `📊 ${status}\n\n`;
         }
 
-        priceList += `\n🛒 *CARA TRADING:*\n`;
+        priceList += `\n📋 *BIAYA TRADING:*\n`;
+        priceList += `• Broker Fee Beli: 0.15%\n`;
+        priceList += `• Broker Fee Jual: 0.25%\n`;
+        priceList += `• Pajak Jual: 0.1%\n`;
+        priceList += `• Admin Fee: Rp 5.000\n\n`;
+        
+        priceList += `🛒 *CARA TRADING:*\n`;
         priceList += `• ${usedPrefix}market beli [kode] [lot]\n`;
         priceList += `• ${usedPrefix}market jual [kode] [lot]\n`;
         priceList += `\n💡 *Contoh:* ${usedPrefix}market beli bbca 5`;
@@ -130,7 +232,7 @@ async function handler(m, { conn, command, args, usedPrefix }) {
                 },
                 {
                     buttonId: 'trading_action',
-                    buttonText: { displayText: 'TRADING SAHAM' },
+                    buttonText: { displayText: tradingInfo.canTrade ? 'TRADING SAHAM' : 'MARKET TUTUP' },
                     type: 4,
                     nativeFlowInfo: {
                         name: 'single_select',
@@ -207,7 +309,7 @@ async function handler(m, { conn, command, args, usedPrefix }) {
             contextInfo: {
                 externalAdReply: {
                     title: 'Market Saham Real-Time',
-                    body: 'Trading Saham Virtual - Live Prices',
+                    body: `${tradingInfo.status} - ${tradingInfo.info}`,
                     thumbnailUrl: thumbnail('https://files.catbox.moe/kiycz0.jpg'),
                     sourceUrl: 'https://whatsapp.com/channel/0029VafEhDUIXnlyGgMSgH2u',
                     mediaType: 1,
@@ -218,6 +320,11 @@ async function handler(m, { conn, command, args, usedPrefix }) {
         return;
     }
 
+    // Cek jam trading untuk transaksi
+    if (!tradingInfo.canTrade && (action === 'beli' || action === 'jual')) {
+        return conn.reply(m.chat, `⏰ *MARKET TUTUP*\n\n${tradingInfo.status}\n${tradingInfo.info}\n\n📅 Jam Trading: Senin-Jumat 09:00-15:30 WIB`, fkontak(conn, m));
+    }
+
     switch (action) {
         case 'beli':
             if (!stock || !stocks[stock]) {
@@ -226,22 +333,23 @@ async function handler(m, { conn, command, args, usedPrefix }) {
 
             const stockInfo = stocks[stock];
             const stockPrice = settings[stockInfo.priceKey];
-            const totalCost = stockPrice * amount * 100; // 1 lot = 100 lembar
+            const totalAmount = stockPrice * amount * 100; // 1 lot = 100 lembar
+            const fees = calculateTradingFees(totalAmount, 'beli');
 
-            if (user.money < totalCost) {
-                return conn.reply(m.chat, `💸 Uang Anda tidak cukup!\n\nDibutuhkan: ${totalCost.toLocaleString()}\nUang Anda: ${user.money.toLocaleString()}`, fkontak(conn, m));
+            if (user.money < fees.totalCost) {
+                return conn.reply(m.chat, `💸 *UANG TIDAK CUKUP!*\n\n📊 Rincian Biaya:\n💰 Nilai Saham: ${totalAmount.toLocaleString()}\n🏦 Broker Fee (0.15%): ${fees.brokerFee.toLocaleString()}\n📋 Admin Fee: ${fees.adminFee.toLocaleString()}\n💳 Total Bayar: ${fees.totalCost.toLocaleString()}\n\n💵 Uang Anda: ${user.money.toLocaleString()}\n❌ Kurang: ${(fees.totalCost - user.money).toLocaleString()}`, fkontak(conn, m));
             }
 
             // Proses pembelian
-            user.money -= totalCost;
+            user.money -= fees.totalCost;
             user[stock] = (user[stock] || 0) + 1;
             user[`${stock}LembarSaham`] = (user[`${stock}LembarSaham`] || 0) + (amount * 100);
-            user[`${stock}Investasi`] = (user[`${stock}Investasi`] || 0) + totalCost;
-            user[`${stock}InvestasiSekarang`] = (user[`${stock}InvestasiSekarang`] || 0) + totalCost;
-            user.totalInvestasi += totalCost;
-            user.totalInvestasiSekarang += totalCost;
+            user[`${stock}Investasi`] = (user[`${stock}Investasi`] || 0) + fees.totalCost;
+            user[`${stock}InvestasiSekarang`] = (user[`${stock}InvestasiSekarang`] || 0) + totalAmount;
+            user.totalInvestasi += fees.totalCost;
+            user.totalInvestasiSekarang += totalAmount;
 
-            return conn.reply(m.chat, `🛒 *MARKET BUY BERHASIL!*\n\n📊 Saham: ${stockInfo.name} (${stockInfo.code})\n📦 Lot: ${amount}\n📈 Lembar: ${amount * 100}\n💰 Harga: ${stockPrice.toLocaleString()}/lembar\n💸 Total: ${totalCost.toLocaleString()}\n\n💵 Sisa Uang: ${user.money.toLocaleString()}`, fkontak(conn, m));
+            return conn.reply(m.chat, `🛒 *MARKET BUY BERHASIL!*\n\n📊 Saham: ${stockInfo.name} (${stockInfo.code})\n📦 Lot: ${amount} | 📈 Lembar: ${amount * 100}\n💰 Harga: ${stockPrice.toLocaleString()}/lembar\n\n💳 *RINCIAN BIAYA:*\n💰 Nilai Saham: ${totalAmount.toLocaleString()}\n🏦 Broker Fee (0.15%): ${fees.brokerFee.toLocaleString()}\n📋 Admin Fee: ${fees.adminFee.toLocaleString()}\n💳 Total Bayar: ${fees.totalCost.toLocaleString()}\n\n💵 Sisa Uang: ${user.money.toLocaleString()}`, fkontak(conn, m));
 
         case 'jual':
             if (!stock || !stocks[stock]) {
@@ -254,10 +362,11 @@ async function handler(m, { conn, command, args, usedPrefix }) {
 
             const sellStockInfo = stocks[stock];
             const sellPrice = settings[sellStockInfo.priceKey];
-            const totalSell = sellPrice * amount * 100;
+            const totalSellAmount = sellPrice * amount * 100;
+            const sellFees = calculateTradingFees(totalSellAmount, 'jual');
 
             // Proses penjualan
-            user.money += totalSell;
+            user.money += sellFees.netAmount;
             user[`${stock}LembarSaham`] -= (amount * 100);
             user[`${stock}InvestasiSekarang`] = user[`${stock}LembarSaham`] * sellPrice;
 
@@ -269,7 +378,7 @@ async function handler(m, { conn, command, args, usedPrefix }) {
                 user[`${stock}InvestasiSekarang`] = 0;
             }
 
-            return conn.reply(m.chat, `💵 *MARKET SELL BERHASIL!*\n\n📊 Saham: ${sellStockInfo.name} (${sellStockInfo.code})\n📦 Lot: ${amount}\n📈 Lembar: ${amount * 100}\n💰 Harga: ${sellPrice.toLocaleString()}/lembar\n💸 Total: ${totalSell.toLocaleString()}\n\n💵 Total Uang: ${user.money.toLocaleString()}`, fkontak(conn, m));
+            return conn.reply(m.chat, `💵 *MARKET SELL BERHASIL!*\n\n📊 Saham: ${sellStockInfo.name} (${sellStockInfo.code})\n📦 Lot: ${amount} | 📈 Lembar: ${amount * 100}\n💰 Harga: ${sellPrice.toLocaleString()}/lembar\n\n💳 *RINCIAN BIAYA:*\n💰 Nilai Jual: ${totalSellAmount.toLocaleString()}\n🏦 Broker Fee (0.25%): ${sellFees.brokerFee.toLocaleString()}\n🏛️ Pajak (0.1%): ${sellFees.tax.toLocaleString()}\n📋 Admin Fee: ${sellFees.adminFee.toLocaleString()}\n💸 Total Biaya: ${sellFees.totalFees.toLocaleString()}\n💵 Diterima: ${sellFees.netAmount.toLocaleString()}\n\n💵 Total Uang: ${user.money.toLocaleString()}`, fkontak(conn, m));
 
         default:
             return conn.reply(m.chat, `❌ Aksi tidak valid. Gunakan: beli atau jual\n\nContoh:\n• ${usedPrefix}market beli bbca 5\n• ${usedPrefix}market jual bbri 3`, fkontak(conn, m));
