@@ -44,7 +44,7 @@ let handler = async (m, { conn, args, command }) => {
           mentionedJid: participants,
           externalAdReply: {
             title: `[ 🎁 𝖠𝗂𝗋𝖣𝗋𝗈𝗉 ]`,
-            thumbnailUrl: 'https://files.catbox.moe/zn9aza.jpg',
+            thumbnailUrl: 'https://files.catbox.moe/el1xt7.jpg',
             mediaType: 1,
             renderLargerThumbnail: true,
             showAdAttribution: false
