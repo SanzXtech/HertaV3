@@ -32,24 +32,12 @@ let handler = async (m, { conn, args, command }) => {
       let id = Math.floor(Math.random() * 90000000000)
       let teks = `🎁 *AIRDROP ${item.toUpperCase()}!*\n\n📦 *${jumlah} ${item.toUpperCase()}* tersedia untuk diklaim!\n✋ Klaim dengan *balas pesan ini dan ketik claimairdrop*\n\n⏳ Waktu: 5 Menit\n👥 Maksimal: ${limit} orang\n🆔 ID: ${id}`
 
-      let participants = Object.keys(data.participants || {})
-
       let msg = await conn.sendMessage(jid, {
-        document: fs.readFileSync('./package.json'),
-        mimetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        fileName: `🎁 AIRDROP ${item.toUpperCase()} 🎁`,
+        video: fs.readFileSync('./media/airdrop.mp4'),
+        mimetype: 'video/mp4',
         caption: teks,
-        mentions: participants,
-        contextInfo: {
-          mentionedJid: participants,
-          externalAdReply: {
-            title: `[ 🎁 𝖠𝗂𝗋𝖣𝗋𝗈𝗉 ]`,
-            thumbnailUrl: 'https://files.catbox.moe/el1xt7.jpg',
-            mediaType: 1,
-            renderLargerThumbnail: true,
-            showAdAttribution: false
-          }
-        }
+        gifPlayback: true,
+        contextInfo: {} // tidak ada preview, bersih
       })
 
       conn.airdrop[jid] = {
