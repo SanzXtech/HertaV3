@@ -110,7 +110,7 @@ ${user.pickaxemine ? `⛏️ Pickaxe Lv.${user.pickaxemine}` : ''}
 ${user.drillmine ? `🛠️ Drill Lv.${user.drillmine}` : ''}
 ${user.robotmine ? `🤖 Robot Lv.${user.robotmine}` : ''}
 
-⛓️ Status Operasi:
+📊 Status Operasi:
 [■■□□□□□□□□□□□□] 20% 🔄
 ⌛ Waktu tersisa: *5 menit*
 
