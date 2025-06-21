@@ -200,7 +200,7 @@ conn.sendMessage(m.chat, {
             title: `${transformText('Bot WhatsApp Multi Device')}\n${transformText(baileysVersion)}`,
             body: `Runtime ${transformText(runTime)}`,
             thumbnail: fs.readFileSync("./media/thumb.jpg"),
-            showAdAttribution: true,
+            showAdAttribution: false,
             renderLargerThumbnail: true,
             mediaType: 1,
             mediaUrl: "",
