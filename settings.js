@@ -10,20 +10,17 @@ const stringSimilarity = require("string-similarity");
 global.nomerOwner = "6281401689098";
 global.nomerOwner2 = "447442352826";
 global.nomerBot = "447442352826";
-global.botName = "Herta - V2"
+global.botName = "Herta - V3"
 global.ownerName = "© SanzOnly"; 
-global.gender = 'Boys'  
-global.agama = 'Islam' 
-global.tanggalLahir = '30/01/2007' // contoh '25/11/1993'
-global.hobi = 'Gamers'
-global.sifat ='Antagonis'
-global.tempatTinggal = 'Banten'
-global.waifu = 'Ryo Yamada'
 global.sgc = 'https://whatsapp.com/channel/0029VafEhDUIXnlyGgMSgH2u'
 
 
 //======= BOT SETTINGS ======\\
 global.pairingCode = true // true / false
+global.heroku = true // true / false
+global.username = "SanzXtech" // username github
+global.repo = "HertaV3" // repo github
+global.token = "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" // token github
 global.botName = "Herta"
 global.session = "session" 
 global.runWith = "Heroku"
@@ -36,8 +33,8 @@ global.Console = false
 global.print = true
 global.copyright = `© ${botName}`
 global.fake1 = "© Sanz X Herta"
-global.packName = "Bot Name : Herta- V2\nBot Number : 085714627306"
-global.authorName = '© Sanz'
+global.packName = "Bot Name : Herta-V3\nTiktok : sanzverse7"
+global.authorName = '© Sanz Verse'
 global.autoblockcmd = false;
 global.ownerBot = `${nomerOwner}@s.whatsapp.net`
 global.gamewaktu = 60;
