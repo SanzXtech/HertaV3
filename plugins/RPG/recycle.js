@@ -3,6 +3,7 @@ const hargaSampah = {
   kardus: 400,
   kaleng: 500,
   plastik: 200,
+  gelas: 600, // ✅ Item baru
   trash: 20
 }
 
@@ -11,6 +12,7 @@ const namaSampah = {
   kardus: '📦 Kardus',
   kaleng: '🥫 Kaleng',
   plastik: '📜 Plastik',
+  gelas: '🥃 Gelas', // ✅ Item baru
   trash: '🗑️ Trash'
 }
 
