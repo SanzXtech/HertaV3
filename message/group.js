@@ -308,8 +308,8 @@ leaveImage = await new canvafy.WelcomeLeave()
 .setBackground("image", backgroundPath)
 .setTitle("Goodbye")
 .setDescription(`Goodbye from ${groupName}`)
-.setBorder("#ff4444")
-.setAvatarBorder("#ff4444")
+.setBorder("#6200ee")
+.setAvatarBorder("#6200ee")
 .setOverlayOpacity(0.3)
 .build();
 
