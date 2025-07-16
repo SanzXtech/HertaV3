@@ -258,8 +258,8 @@ welcomeImage = await new canvafy.WelcomeLeave()
 .setBackground("image", backgroundPath)
 .setTitle("Welcome")
 .setDescription(`Welcome to ${groupName}`)
-.setBorder("#2a2e35")
-.setAvatarBorder("#2a2e35")
+.setBorder("#6200ee")
+.setAvatarBorder("#6200ee")
 .setOverlayOpacity(0.3)
 .build();
 
