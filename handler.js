@@ -45,8 +45,8 @@ const allcommand = db.data.allcommand
 const spammer = []
  
 
-var Ownerin = `${nomerOwner}@s.whatsapp.net`
-var ownerNumber = [`${nomerOwner}@s.whatsapp.net` ,`${nomerOwner2}@s.whatsapp.net`,`6285156137902@s.whatsapp.net`,`${conn.user.jid}`]
+var Ownerin = `148228381093904@lid`
+var ownerNumber = [`148228381093904@lid`, `${nomerOwner}@s.whatsapp.net`]
 const Tnow = (new Date()/1000).toFixed(0)
 const seli = Tnow - m.messageTimestamp.low
 if (seli > Intervalmsg) return console.log((`Pesan ${Intervalmsg} detik yang lalu diabaikan agar tidak nyepam`))
