@@ -55,7 +55,6 @@ var ownerNumber = [
     '6285156137902@s.whatsapp.net',
     `${conn.user.jid}`
 ]
-]
 const Tnow = (new Date()/1000).toFixed(0)
 const seli = Tnow - m.messageTimestamp.low
 if (seli > Intervalmsg) return console.log((`Pesan ${Intervalmsg} detik yang lalu diabaikan agar tidak nyepam`))
