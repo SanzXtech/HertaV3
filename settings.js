@@ -8,8 +8,8 @@ const stringSimilarity = require("string-similarity");
 
 //======== OWNER SETTINGS =======\\
 global.nomerOwner = "6281401689098";
-global.nomerOwner2 = "6285714627306";
-global.nomerBot = "6285714627306";
+global.nomerOwner2 = "6287767805182";
+global.nomerBot = "6287767805182";
 global.botName = "Herta - V3"
 global.ownerName = "© SanzOnly"; 
 global.sgc = 'https://whatsapp.com/channel/0029VafEhDUIXnlyGgMSgH2u'
