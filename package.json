@@ -2,7 +2,7 @@
   "name": "fearless",
   "version": "7.0.0",
   "developer": "officialdittaz",
-  "description": "WhatsApp Bot dengan Baileys v7 dan dukungan Heroku",
+  "description": "WhatsApp Bot dengan Baileys v7 - Heroku Ready",
   "main": "index.js",
   "type": "module",
   "directories": {
@@ -14,9 +14,11 @@
     "npm": ">=10.0.0"
   },
   "scripts": {
-    "start": "node index.js",
+    "start": "node --optimize_for_size --max_old_space_size=512 --gc_interval=100 index.js",
     "dev": "node --watch index.js",
-    "heroku-postbuild": "echo 'Build completed successfully'"
+    "heroku-postbuild": "echo 'Build completed successfully'",
+    "fix-imports": "node fix-imports.js",
+    "clean-install": "rm -rf node_modules package-lock.json && npm install"
   },
   "author": "Dittaz",
   "license": "MIT",
@@ -36,6 +38,7 @@
     "archiver": "^7.0.1",
     "awesome-phonenumber": "^2.48.0",
     "axios": "^1.6.0",
+    "baileys": "npm:@whiskeysockets/baileys@7.0.0-rc.6",
     "canvafy": "^7.1.0",
     "cfonts": "^3.1.1",
     "chalk": "^5.3.0",
