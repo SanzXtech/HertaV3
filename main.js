@@ -1,679 +1,421 @@
-//process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
+// process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
 
 import "./settings.js";
 
-const {
-
+import {
   makeInMemoryStore,
-
   useMultiFileAuthState,
-
   makeCacheableSignalKeyStore,
-
   MessageRetryMap,
-
   fetchLatestBaileysVersion,
-
   PHONENUMBER_MCC,
-
-  getAggregateVotesInPollMessage
-
-} = (await import("baileys")).default;
+  getAggregateVotesInPollMessage,
+  makeWASocket,
+  Browsers,
+  DisconnectReason
+} from "@whiskeysockets/baileys";
 
 import fs, { readdirSync, existsSync, readFileSync, watch, statSync } from "fs";
-
 import logg from "pino";
-
 import { Socket, smsg, protoType } from "./lib/simple.js";
-
 import CFonts from "cfonts";
-
 import path, { join, dirname, basename } from "path";
-
 import { memberUpdate, groupsUpdate } from "./message/group.js";
-
 import { antiCall } from "./message/anticall.js";
-
 import { connectionUpdate } from "./message/connection.js";
-
 import { Function } from "./message/function.js";
-
 import NodeCache from "node-cache";
-
 import { createRequire } from "module";
-
 import { fileURLToPath, pathToFileURL } from "url";
-
 import { platform } from "process";
-
 import syntaxerror from "syntax-error";
-
 import { format } from "util";
-
 import chokidar from "chokidar";
-
 import chalk from "chalk";
-
 import util from "util";
-
-const { proto, generateWAMessage,  areJidsSameUser } = require('baileys')
+import { Boom } from "@hapi/boom";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 global.__filename = function filename(
-
   pathURL = import.meta.url,
-
   rmPrefix = platform !== "win32"
-
 ) {
-
   return rmPrefix
-
     ? /file:\/\/\//.test(pathURL)
-
       ? fileURLToPath(pathURL)
-
       : pathURL
-
     : pathToFileURL(pathURL).toString();
-
 };
-
-/*
-
-global.__dirname = function dirname(pathURL) {
-
-return path.dirname(global.__filename(pathURL, true))
-
-};
-
-*/
 
 global.__require = function require(dir = import.meta.url) {
-
   return createRequire(dir);
-
 };
 
 protoType();
 
 let phoneNumber = "916909137213";
-
 const readline = require("readline");
-
 const rl = readline.createInterface({
-
   input: process.stdin,
-
   output: process.stdout,
-
 });
-
 const question = (text) => new Promise((resolve) => rl.question(text, resolve));
 
 const pairingCode = false; // process.argv.includes("--pairing-code");
-
 const useMobile = process.argv.includes("--mobile");
 
 const msgRetryCounterCache = new NodeCache();
-
 const msgRetryCounterMap = (MessageRetryMap) => {};
 
 CFonts.say("fearless", {
-
   font: "chrome",
-
   align: "left",
-
   gradient: ["red", "magenta"],
-
 });
 
-//Connect to WhatsApp
-
+// Connect to WhatsApp
 const connectToWhatsApp = async () => {
-
-  await (await import("./message/database.js")).default();
-
-  //const { state } = useSingleFileAuthState('./session.json')
-
-  const { state, saveCreds } = await useMultiFileAuthState(session);
-
-  const store = makeInMemoryStore({
-
-    logger: logg().child({ level: "fatal", stream: "store" }),
-
-  });
-
-  const { version, isLatest } = await fetchLatestBaileysVersion();
-
-  //Funtion agar pesan bot tidak pending
-
-  const getMessage = async (key) => {
-
-    if (store) {
-
-      const msg = await store.loadMessage(key.remoteJid, key.id, undefined);
-
-      return msg?.message || undefined;
-
+  try {
+    // Import database (jika ada)
+    try {
+      await (await import("./message/database.js")).default();
+    } catch (error) {
+      console.log("⚠️ Database module not found or error, continuing...");
     }
 
-    // only if store is present
-
-    return proto.Message.fromObject({});
-
-  };
-
-  //Untuk menyimpan session
-
-  const auth = {
-
-    creds: state.creds,
-
-    /** caching makes the store faster to send/recv messages */
-
-    keys: makeCacheableSignalKeyStore(
-
-      state.keys,
-
-      logg().child({ level: "fatal", stream: "store" })
-
-    ),
-
-  };
-
-  //Funtion agar bisa pake button di bailey terbaru
-
-  const patchMessageBeforeSending = (message) => {
-
-    const requiresPatch = !!(
-
-      message.buttonsMessage ||
-
-      message.listMessage ||
-
-      message.templateMessage
-
-    );
-
-    if (requiresPatch) {
-
-      message = {
-
-        viewOnceMessage: {
-
-          message: {
-
-            messageContextInfo: {
-
-              deviceListMetadataVersion: 2,
-
-              deviceListMetadata: {},
-
-            },
-
-            ...message,
-
-          },
-
-        },
-
-      };
-
-    }
-
-    return message;
-
-  };
-
-  //Koneksi nih silakan di isi
-
-  const connectionOptions = {
-
-    version,
-
-    printQRInTerminal: !global.pairingCode,
-
-    patchMessageBeforeSending,
-
-    logger: logg({ level: "fatal" }),
-
-    auth,
-
-    browser: ["Ubuntu","Chrome"],
-
-    //browser: ["Chrome (Linux)", "", ""], //['Mac OS', 'chrome', '121.0.6167.159'], //  for this issues https://github.com/WhiskeySockets/Baileys/issues/328
-
-    getMessage,
-
-    MessageRetryMap,
-
-    keepAliveIntervalMs: 20000,
-
-    defaultQueryTimeoutMs: undefined, // for this issues https://github.com/WhiskeySockets/Baileys/issues/276
-
-    connectTimeoutMs: 30000,
-
-    emitOwnEvents: true,
-
-    fireInitQueries: true,
-
-    generateHighQualityLinkPreview: true,
-
-    syncFullHistory: true,
-
-    markOnlineOnConnect: true,
-
-    msgRetryCounterCache,
-
-  };
-
-  global.conn = Socket(connectionOptions);
-
-  //!global.pairingCode &&
-
-  store.bind(conn.ev);
-
-  if (global.pairingCode && !conn.authState.creds.registered) {
-
-/*
-
-    //const folderPath = './folder-yang-akan-dihapus';
-
-    if (fs.existsSync(`./${global.session}`)) {
-
-    // Menggunakan fs.rm
-
-    fs.rm(global.session, { recursive: true, force: true }, (err) => {
-
-      if (err) {
-
-        console.error('Error saat menghapus folder:', err);
-
-      } else {
-
-        console.log('Membersihkan Folder Session');
-
-      }
-
+    // Setup session dengan path yang benar untuk Baileys v7
+    const sessionFolder = './session';
+    const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
+
+    const store = makeInMemoryStore({
+      logger: logg().child({ level: "fatal", stream: "store" }),
     });
 
-  } 
-
-*/
-
- 
-
-    setTimeout(async () => {
-
-      let code = await conn.requestPairingCode(global.nomerBot);
-
-      code = code?.match(/.{1,4}/g)?.join("-") || code;
-
-      console.log(
-
-        chalk.black(chalk.bgGreen(`Your Phone Number : `)),
-
-        chalk.black(chalk.white(global.nomerBot)),
-
-        chalk.black(chalk.bgGreen(`\nYour Pairing Code : `)),
-
-        chalk.black(chalk.white(code))
-
-      );
-
-    }, 3000);
-
-  }
-
-  
-
- 
-
-  conn.ev.process(async (events) => {
-
-    //Cnnection Update
-
-    if (events["connection.update"]) {
-
-      if (db.data == null) await loadDatabase();
-
-      const update = events["connection.update"];
-
-      await connectionUpdate(connectToWhatsApp, conn, update);
-
-    }
-
-    // credentials updated -- save them
-
-    if (events["creds.update"]) {
-
-      await saveCreds();
-
-    }
-
-    
-
-    // received a new message
-
-    if (events["messages.upsert"]) {
-
-      try{
-
-      //if (global.db.data) global.db.write();
-
-      const chatUpdate = events["messages.upsert"];
-
-      if (!chatUpdate.messages) return //console.log('!chatUpdate.messages')
-
-      let m = chatUpdate.messages[0];
-
-      if (!m) return;
-
-      if (m.key.fromMe) return; // Abaikan pesan yang dikirim oleh bot sendiri
-
-  if (m.message?.viewOnceMessageV2) m.message = m.message.viewOnceMessageV2.message;
-
-  if (m.message?.documentWithCaptionMessage) m.message = m.message.documentWithCaptionMessage.message;
-
-  if (m.message?.viewOnceMessageV2Extension) m.message = m.message.viewOnceMessageV2Extension.message;
-
-    //console.log(m)
-
-      //console.log('!chatUpdate.messages')
-
-      //chatUpdate.messages[chatUpdate.messages.length - 1] // ||
-
-      
-
-   
-
-      if (m.key && m.key.remoteJid === 'status@broadcast') {return}
-
-      if (!m.message) return  
-
-      if (m.key.id && m.key.id.length === 22 || m.key.id.startsWith('3EB0') && m.key.id.length === 12 || false) {return}  
-
-      const { register } = await import(`./message/register.js?v=${Date.now()}`).catch((err) => console.log(err));
-
-      m = await smsg(conn, m);
-
-      const { handler } = await import(`./handler.js?v=${Date.now()}`).catch(
-
-        (err) => console.log(err)
-
-      );
-
-      
-
-      if (m.messageStubParameters && m.messageStubParameters[0] === "Message absent from node") {
-
-        conn.sendMessageAck(JSON.parse(m.messageStubParameters[1], BufferJSON.reviver));
-
-    }
-
-      await register(m);
-
-      if (global.db.data)  global.db.write();
-
-      handler(conn, m, chatUpdate, store);
-
-      } catch(err){
-
-        log(err)
-
-        let e = util.format(err)
-
-         conn.sendMessage(ownerBot, {text:e})
-
+    const { version, isLatest } = await fetchLatestBaileysVersion();
+    console.log(`📱 Using WhatsApp version: ${version.join('.')}, isLatest: ${isLatest}`);
+
+    // Function agar pesan bot tidak pending
+    const getMessage = async (key) => {
+      if (store) {
+        const msg = await store.loadMessage(key.remoteJid, key.id, undefined);
+        return msg?.message || undefined;
       }
+      return {};
+    };
 
+    // Auth configuration untuk Baileys v7
+    const auth = {
+      creds: state.creds,
+      keys: makeCacheableSignalKeyStore(
+        state.keys,
+        logg().child({ level: "fatal", stream: "store" })
+      ),
+    };
+
+    // Function agar bisa pake button di baileys terbaru
+    const patchMessageBeforeSending = (message) => {
+      const requiresPatch = !!(
+        message.buttonsMessage ||
+        message.listMessage ||
+        message.templateMessage
+      );
+      if (requiresPatch) {
+        message = {
+          viewOnceMessage: {
+            message: {
+              messageContextInfo: {
+                deviceListMetadataVersion: 2,
+                deviceListMetadata: {},
+              },
+              ...message,
+            },
+          },
+        };
+      }
+      return message;
+    };
+
+    // Connection options untuk Baileys v7
+    const connectionOptions = {
+      version,
+      printQRInTerminal: !global.pairingCode,
+      patchMessageBeforeSending,
+      logger: logg({ level: "fatal" }),
+      auth,
+      browser: Browsers.ubuntu("Chrome"),
+      getMessage,
+      msgRetryCounterCache,
+      defaultQueryTimeoutMs: 60000,
+      connectTimeoutMs: 30000,
+      emitOwnEvents: true,
+      fireInitQueries: true,
+      generateHighQualityLinkPreview: true,
+      syncFullHistory: false,
+      markOnlineOnConnect: true,
+    };
+
+    // Membuat koneksi socket
+    global.conn = makeWASocket(connectionOptions);
+
+    // Bind store ke events
+    if (!global.pairingCode) {
+      store.bind(conn.ev);
     }
 
-    //Anti Call
-
-    if (events.call) {
-
-      const node = events.call;
-
-      antiCall(db, node, conn);
-
+    // Handle pairing code jika diperlukan
+    if (global.pairingCode && !conn.authState?.creds?.registered) {
+      setTimeout(async () => {
+        try {
+          let code = await conn.requestPairingCode(global.nomerBot);
+          code = code?.match(/.{1,4}/g)?.join("-") || code;
+          console.log(
+            chalk.black(chalk.bgGreen(`Your Phone Number : `)),
+            chalk.black(chalk.white(global.nomerBot)),
+            chalk.black(chalk.bgGreen(`\nYour Pairing Code : `)),
+            chalk.black(chalk.white(code))
+          );
+        } catch (error) {
+          console.log("⚠️ Error getting pairing code:", error.message);
+        }
+      }, 3000);
     }
 
-    //Member Update
+    // Handle events
+    conn.ev.on('connection.update', async (update) => {
+      const { connection, lastDisconnect, qr } = update;
+      
+      if (qr) {
+        console.log('📱 QR Code generated, please scan!');
+      }
+      
+      if (connection === 'close') {
+        const statusCode = (new Boom(lastDisconnect?.error)).output?.statusCode;
+        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+        
+        console.log(`❌ Connection closed. Reconnecting: ${shouldReconnect}`);
+        
+        if (shouldReconnect) {
+          setTimeout(connectToWhatsApp, 5000);
+        }
+      } else if (connection === 'open') {
+        console.log('✅ WhatsApp connected successfully!');
+        console.log('👤 User ID:', conn.user?.id);
+      }
+    });
 
-    if (events["group-participants.update"]) {
+    // Handle credentials update
+    conn.ev.on('creds.update', saveCreds);
 
-      const anu = events["group-participants.update"];
+    // Handle messages
+    conn.ev.on('messages.upsert', async ({ messages, type }) => {
+      try {
+        if (type !== 'notify') return;
+        if (!messages || messages.length === 0) return;
+        
+        let m = messages[0];
+        if (!m) return;
+        if (m.key?.fromMe) return; // Abaikan pesan yang dikirim oleh bot sendiri
+        
+        // Handle special message types
+        if (m.message?.viewOnceMessageV2) m.message = m.message.viewOnceMessageV2.message;
+        if (m.message?.documentWithCaptionMessage) m.message = m.message.documentWithCaptionMessage.message;
+        if (m.message?.viewOnceMessageV2Extension) m.message = m.message.viewOnceMessageV2Extension.message;
+        
+        // Skip status broadcasts
+        if (m.key && m.key.remoteJid === 'status@broadcast') return;
+        if (!m.message) return;
+        
+        // Filter out certain message IDs
+        if (m.key.id && (m.key.id.length === 22 || (m.key.id.startsWith('3EB0') && m.key.id.length === 12))) return;
+        
+        // Convert to message object
+        m = await smsg(conn, m);
+        
+        // Handle registration jika ada
+        try {
+          const { register } = await import(`./message/register.js?v=${Date.now()}`);
+          await register(m);
+        } catch (err) {
+          // Skip if register module doesn't exist
+        }
+        
+        // Handle message dengan handler
+        try {
+          const { handler } = await import(`./handler.js?v=${Date.now()}`);
+          await handler(conn, m, { messages, type }, store);
+        } catch (err) {
+          console.log('⚠️ Handler error:', err.message);
+        }
+        
+      } catch (err) {
+        console.log('⚠️ Error processing message:', err.message);
+        if (global.ownerBot) {
+          conn.sendMessage(global.ownerBot, { text: util.format(err) }).catch(() => {});
+        }
+      }
+    });
 
-      if (global.db.data == null) await loadDatabase();
+    // Handle calls
+    conn.ev.on('call', async (node) => {
+      try {
+        await antiCall(db, node, conn);
+      } catch (error) {
+        console.log('⚠️ Error handling call:', error.message);
+      }
+    });
 
-      memberUpdate(conn, anu);
+    // Handle group participants update
+    conn.ev.on('group-participants.update', async (anu) => {
+      try {
+        await memberUpdate(conn, anu);
+      } catch (error) {
+        console.log('⚠️ Error handling group update:', error.message);
+      }
+    });
 
+    // Load plugins
+    const pluginFolder = path.join(__dirname, "./plugins");
+    const pluginFilter = (filename) => /\.js$/.test(filename);
+    global.plugins = {};
+
+    async function filesInit(folderPath) {
+      if (!existsSync(folderPath)) return;
+      
+      const files = readdirSync(folderPath);
+      for (let file of files) {
+        const filePath = join(folderPath, file);
+        const fileStat = statSync(filePath);
+        
+        if (fileStat.isDirectory()) {
+          await filesInit(filePath);
+        } else if (pluginFilter(file)) {
+          try {
+            const module = await import("file://" + filePath);
+            global.plugins[file] = module.default || module;
+          } catch (e) {
+            console.log(`⚠️ Error loading plugin ${file}:`, e.message);
+            delete global.plugins[file];
+          }
+        }
+      }
     }
 
-    //------------------------------------[BATAS]--------------------------------\\
+    await filesInit(pluginFolder);
 
-  });
-
-  global.reloadHandler = async function (restatConn) {};
-
-  const pluginFolder = path.join(__dirname, "./plugins");
-
-  const pluginFilter = (filename) => /\.js$/.test(filename);
-
-  global.plugins = {};
-
-  async function filesInit(folderPath) {
-
-    const files = readdirSync(folderPath);
-
-    for (let file of files) {
-
-      const filePath = join(folderPath, file);
-
-      const fileStat = statSync(filePath);
-
-      if (fileStat.isDirectory()) {
-
-        // Jika file adalah sebuah direktori, panggil kembali fungsi filesInit dengan folder baru sebagai parameter
-
-        await filesInit(filePath);
-
-      } else if (pluginFilter(file)) {
-
-        // Jika file adalah file JavaScript, lakukan inisialisasi
+    // Plugin reload function
+    global.reload = async (_ev, filename) => {
+      if (pluginFilter(filename)) {
+        let dir = global.__filename(join(pluginFolder, filename), true);
+        
+        if (filename in global.plugins) {
+          if (existsSync(dir)) {
+            console.log(
+              chalk.bgGreen(chalk.black("[ UPDATE ]")),
+              chalk.white(`${filename}`)
+            );
+          } else {
+            console.log(
+              chalk.bgRed(chalk.black("[ DELETE ]")),
+              chalk.white(`${filename}`)
+            );
+            return delete global.plugins[filename];
+          }
+        } else {
+          console.log(
+            chalk.bgBlue(chalk.black("[ NEW ]")),
+            chalk.white(`${filename}`)
+          );
+        }
 
         try {
-
-          const module = await import("file://" + filePath);
-
-          global.plugins[file] = module.default || module;
-
+          let err = syntaxerror(readFileSync(dir), filename, {
+            sourceType: "module",
+            allowAwaitOutsideFunction: true,
+          });
+          
+          if (err) {
+            console.log(`❌ Syntax error in ${filename}:\n${format(err)}`);
+          } else {
+            const module = await import(`${global.__filename(dir)}?update=${Date.now()}`);
+            global.plugins[filename] = module.default || module;
+          }
         } catch (e) {
-
-          conn.logger.error(e);
-
-          delete global.plugins[file];
-
-        }
-
-      }
-
-    }
-
-  }
-
-  filesInit(pluginFolder);
-
-  global.reload = async (_ev, filename) => {
-
-    //console.log(filename)
-
-    if (pluginFilter(filename)) {
-
-      let dir = global.__filename(join(filename), true); //pluginFolder,
-
-      if (filename in global.plugins) {
-
-        if (existsSync(dir))
-
-          console.log(
-
-            chalk.bgGreen(chalk.black("[ UPDATE ]")),
-
-            chalk.white(`${filename}`)
-
+          console.log(`❌ Error loading plugin ${filename}:\n${format(e)}`);
+        } finally {
+          global.plugins = Object.fromEntries(
+            Object.entries(global.plugins).sort(([a], [b]) => a.localeCompare(b))
           );
-
-        // conn.logger.info(`re - require plugin '${filename}'`);
-
-        else {
-
-          conn.logger.warn(`deleted plugin '${filename}'`);
-
-          return delete global.plugins[filename];
-
         }
+      }
+    };
 
-      } else
-
-        console.log(
-
-          chalk.bgGreen(chalk.black("[ UPDATE ]")),
-
-          chalk.white(`${filename}`)
-
-        ); //;conn.logger.info(`requiring new plugin '${filename}'`);
-
-      //console.log(dir)
-
-      let err = syntaxerror(readFileSync(dir), filename, {
-
-        sourceType: "module",
-
-        allowAwaitOutsideFunction: true,
-
+    // Setup file watcher untuk plugins
+    if (existsSync(pluginFolder)) {
+      const watcher = chokidar.watch(pluginFolder, {
+        ignored: /(^|[\/\\])\../,
+        persistent: true,
+        depth: 99,
+        awaitWriteFinish: {
+          stabilityThreshold: 2000,
+          pollInterval: 100,
+        },
       });
 
-      if (err)
-
-        conn.logger.error(
-
-          `syntax error while loading '${filename}'\n${format(err)}`
-
-        );
-
-      else
-
-        try {
-
-          const module = await import(
-
-            `${global.__filename(dir)}?update=${Date.now()}`
-
-          );
-
-          global.plugins[filename] = module.default || module;
-
-        } catch (e) {
-
-          conn.logger.error(`error require plugin '${filename}\n${format(e)}'`);
-
-        } finally {
-
-          global.plugins = Object.fromEntries(
-
-            Object.entries(global.plugins).sort(([a], [b]) =>
-
-              a.localeCompare(b)
-
-            )
-
-          );
-
+      watcher.on("change", (path) => {
+        if (path.endsWith(".js")) {
+          const filename = basename(path);
+          global.reload(null, filename);
         }
+      });
 
+      Object.freeze(global.reload);
     }
 
-  };
-
-  // Buat instance Chokidar watcher
-
-  const watcher = chokidar.watch(pluginFolder, {
-
-    ignored: /(^|[\/\\])\../, // ignore dotfiles
-
-    persistent: true,
-
-    depth: 99, // Tentukan kedalaman rekursi
-
-    awaitWriteFinish: {
-
-      stabilityThreshold: 2000,
-
-      pollInterval: 100,
-
-    },
-
-  });
-
-  // Tambahkan event listener untuk memantau perubahan
-
-  watcher.on("all", (event, path) => {
-
-    // Panggil fungsi reload jika file yang berubah adalah file JavaScript
-
-    if (event === "change" && path.endsWith(".js")) {
-
-      const filename = path.split("/").pop(); // Dapatkan nama file dari path
-
-      global.reload(null, filename); // Panggil fungsi reload dengan null untuk _ev dan nama file
-
+    // Initialize functions
+    try {
+      await Function(conn);
+    } catch (error) {
+      console.log("⚠️ Error initializing functions:", error.message);
     }
 
-  });
+    console.log("🚀 WhatsApp Bot is ready!");
+    return conn;
 
-  Object.freeze(global.reload);
-
-  watch(pluginFolder, global.reload);
-
-  //await global.reloadHandler()
-
-  Function(conn);
-
-  return conn;
-
+  } catch (error) {
+    console.log("❌ Error connecting to WhatsApp:", error.message);
+    console.log("🔄 Reconnecting in 5 seconds...");
+    setTimeout(connectToWhatsApp, 5000);
+  }
 };
 
+// Start the bot
 connectToWhatsApp();
 
+// Error handling
 process.on("uncaughtException", function (err) {
-
   let e = String(err);
-
-  if (e.includes("Socket connection timeout")) return;
-
-  if (e.includes("rate-overlimit")) return;
-
-  if (e.includes("Connection Closed")) return;
-
-  if (e.includes("Timed Out")) return;
-
-  if (e.includes("Value not found")) return;
-
-  console.log("Caught exception: ", err);
-
+  const ignorableErrors = [
+    "Socket connection timeout",
+    "rate-overlimit",
+    "Connection Closed",
+    "Timed Out",
+    "Value not found",
+    "ERR_MODULE_NOT_FOUND"
+  ];
+  
+  if (ignorableErrors.some(error => e.includes(error))) return;
+  
+  console.log("⚠️ Caught exception: ", err.message);
+  console.log("📋 Stack trace:", err.stack);
 });
 
 process.on("warning", (warning) => {
+  console.warn("⚠️ Warning:", warning.name);
+  console.warn("📝 Message:", warning.message);
+});
 
-  console.warn(warning.name); // Cetak nama peringatan
-
-  console.warn(warning.message); // Cetak pesan peringatan
-
-  console.warn(warning.stack); // Cetak stack trace
-
+process.on("unhandledRejection", (reason, promise) => {
+  console.warn("⚠️ Unhandled Rejection at:", promise);
+  console.warn("📝 Reason:", reason);
 });
