@@ -6,13 +6,15 @@ import {
   makeInMemoryStore,
   useMultiFileAuthState,
   makeCacheableSignalKeyStore,
-  MessageRetryMap,
   fetchLatestBaileysVersion,
   PHONENUMBER_MCC,
   getAggregateVotesInPollMessage,
   makeWASocket,
   Browsers,
-  DisconnectReason
+  DisconnectReason,
+  proto,
+  areJidsSameUser,
+  generateWAMessageFromContent
 } from "@whiskeysockets/baileys";
 
 import fs, { readdirSync, existsSync, readFileSync, watch, statSync } from "fs";
@@ -66,7 +68,9 @@ const pairingCode = false; // process.argv.includes("--pairing-code");
 const useMobile = process.argv.includes("--mobile");
 
 const msgRetryCounterCache = new NodeCache();
-const msgRetryCounterMap = (MessageRetryMap) => {};
+
+// MessageRetryMap sudah tidak ada di v7, diganti dengan msgRetryCounterCache
+const msgRetryCounterMap = undefined;
 
 CFonts.say("fearless", {
   font: "chrome",
@@ -181,7 +185,7 @@ const connectToWhatsApp = async () => {
       }, 3000);
     }
 
-    // Handle events
+    // Handle connection updates
     conn.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
       
@@ -201,6 +205,13 @@ const connectToWhatsApp = async () => {
       } else if (connection === 'open') {
         console.log('✅ WhatsApp connected successfully!');
         console.log('👤 User ID:', conn.user?.id);
+        
+        // Update presence
+        try {
+          await conn.sendPresenceUpdate('available');
+        } catch (error) {
+          // Ignore presence update errors
+        }
       }
     });
 
@@ -259,7 +270,9 @@ const connectToWhatsApp = async () => {
     // Handle calls
     conn.ev.on('call', async (node) => {
       try {
-        await antiCall(db, node, conn);
+        if (typeof antiCall === 'function') {
+          await antiCall(db, node, conn);
+        }
       } catch (error) {
         console.log('⚠️ Error handling call:', error.message);
       }
@@ -268,7 +281,9 @@ const connectToWhatsApp = async () => {
     // Handle group participants update
     conn.ev.on('group-participants.update', async (anu) => {
       try {
-        await memberUpdate(conn, anu);
+        if (typeof memberUpdate === 'function') {
+          await memberUpdate(conn, anu);
+        }
       } catch (error) {
         console.log('⚠️ Error handling group update:', error.message);
       }
@@ -280,7 +295,10 @@ const connectToWhatsApp = async () => {
     global.plugins = {};
 
     async function filesInit(folderPath) {
-      if (!existsSync(folderPath)) return;
+      if (!existsSync(folderPath)) {
+        console.log(`⚠️ Plugin folder not found: ${folderPath}`);
+        return;
+      }
       
       const files = readdirSync(folderPath);
       for (let file of files) {
@@ -293,6 +311,7 @@ const connectToWhatsApp = async () => {
           try {
             const module = await import("file://" + filePath);
             global.plugins[file] = module.default || module;
+            console.log(`✅ Loaded plugin: ${file}`);
           } catch (e) {
             console.log(`⚠️ Error loading plugin ${file}:`, e.message);
             delete global.plugins[file];
@@ -374,7 +393,9 @@ const connectToWhatsApp = async () => {
 
     // Initialize functions
     try {
-      await Function(conn);
+      if (typeof Function === 'function') {
+        await Function(conn);
+      }
     } catch (error) {
       console.log("⚠️ Error initializing functions:", error.message);
     }
@@ -401,21 +422,19 @@ process.on("uncaughtException", function (err) {
     "Connection Closed",
     "Timed Out",
     "Value not found",
-    "ERR_MODULE_NOT_FOUND"
+    "ERR_MODULE_NOT_FOUND",
+    "Cannot find package"
   ];
   
   if (ignorableErrors.some(error => e.includes(error))) return;
   
   console.log("⚠️ Caught exception: ", err.message);
-  console.log("📋 Stack trace:", err.stack);
 });
 
 process.on("warning", (warning) => {
   console.warn("⚠️ Warning:", warning.name);
-  console.warn("📝 Message:", warning.message);
 });
 
 process.on("unhandledRejection", (reason, promise) => {
-  console.warn("⚠️ Unhandled Rejection at:", promise);
-  console.warn("📝 Reason:", reason);
+  console.warn("⚠️ Unhandled Rejection:", reason);
 });
