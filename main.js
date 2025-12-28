@@ -3,7 +3,8 @@
 import "./settings.js";
 
 // IMPORT BAILEYS v7 YANG BENAR
-import makeWASocket, { 
+import { 
+    makeWASocket,
     useMultiFileAuthState,
     makeCacheableSignalKeyStore,
     fetchLatestBaileysVersion,
@@ -12,8 +13,8 @@ import makeWASocket, {
     proto
 } from '@whiskeysockets/baileys';
 
-// Import makeInMemoryStore dari path yang benar
-import makeInMemoryStore from '@whiskeysockets/baileys/lib/Store/make-in-memory-store.js';
+// Import makeInMemoryStore dari lokasi yang benar
+import { makeInMemoryStore } from '@whiskeysockets/baileys';
 
 import fs, { readdirSync, existsSync, readFileSync, watch, statSync } from "fs";
 import logg from "pino";
@@ -93,6 +94,7 @@ const connectToWhatsApp = async () => {
     
     const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
 
+    // Buat store
     const store = makeInMemoryStore({
       logger: logg().child({ level: "fatal", stream: "store" }),
     });
@@ -103,10 +105,14 @@ const connectToWhatsApp = async () => {
     // Function to get message
     const getMessage = async (key) => {
       if (store) {
-        const msg = await store.loadMessage(key.remoteJid, key.id, undefined);
-        return msg?.message || undefined;
+        try {
+          const msg = await store.loadMessage(key.remoteJid, key.id);
+          return msg?.message || undefined;
+        } catch (error) {
+          return undefined;
+        }
       }
-      return {};
+      return undefined;
     };
 
     // Auth configuration untuk Baileys v7
