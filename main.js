@@ -2,7 +2,6 @@ import "./settings.js"
 
 import makeWASocket, {
   useMultiFileAuthState,
-  makeInMemoryStore,
   fetchLatestBaileysVersion,
   DisconnectReason,
   Browsers,
@@ -10,7 +9,7 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
 
-import fs, { readdirSync, existsSync, readFileSync, watch, statSync } from "fs"
+import fs, { readdirSync, existsSync, statSync } from "fs"
 import pino from "pino"
 import { smsg } from "./lib/simple.js"
 import path, { join, dirname } from "path"
@@ -18,12 +17,10 @@ import { memberUpdate } from "./message/group.js"
 import { antiCall } from "./message/anticall.js"
 import { connectionUpdate } from "./message/connection.js"
 import { Function } from "./message/function.js"
-import NodeCache from "node-cache"
 import { createRequire } from "module"
 import { fileURLToPath, pathToFileURL } from "url"
 import { platform } from "process"
 import chalk from "chalk"
-import util from "util"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -36,25 +33,38 @@ global.__require = function require(dir = import.meta.url) {
   return createRequire(dir)
 }
 
-const msgRetryCounterCache = new NodeCache()
+// Simple in-memory store alternative
+const createSimpleStore = () => {
+  return {
+    contacts: {},
+    chats: {},
+    messages: {},
+    bind: function(ev) {
+      // Simple event binding untuk store
+      ev.on('contacts.upsert', (contacts) => {
+        contacts.forEach(contact => {
+          this.contacts[contact.id] = contact
+        })
+      })
+    }
+  }
+}
 
-// Fungsi untuk mendapatkan nama pengirim (CLEAN VERSION)
+// Fungsi untuk mendapatkan nama pengirim
 const getSenderName = async (sock, jid, participant = null) => {
   try {
     let name = "Anonymous"
     const targetJid = participant || jid
     
-    // Coba dari kontak
-    if (sock.contacts && sock.contacts[targetJid]) {
-      name = sock.contacts[targetJid].name || sock.contacts[targetJid].notify || targetJid.split('@')[0]
+    // Coba dari kontak yang sudah tersimpan
+    if (global.store && global.store.contacts && global.store.contacts[targetJid]) {
+      const contact = global.store.contacts[targetJid]
+      name = contact.name || contact.notify || targetJid.split('@')[0]
     }
     
-    // Jika masih anonymous, coba dari store jika ada
-    if (name === "Anonymous" && sock.ev && sock.ev.store) {
-      const storeContact = sock.ev.store.contacts?.[targetJid]
-      if (storeContact?.name) {
-        name = storeContact.name
-      }
+    // Jika masih anonymous, gunakan nomor
+    if (name === "Anonymous") {
+      name = targetJid.split('@')[0]
     }
     
     return name
@@ -65,41 +75,47 @@ const getSenderName = async (sock, jid, participant = null) => {
 
 // Fungsi ekstrak teks pesan
 const extractMessageText = (m) => {
-  if (m.message?.conversation) return m.message.conversation
-  if (m.message?.extendedTextMessage?.text) return m.message.extendedTextMessage.text
-  if (m.message?.imageMessage?.caption) return m.message.imageMessage.caption
-  if (m.message?.videoMessage?.caption) return m.message.videoMessage.caption
+  if (!m.message) return "[No Message]"
   
-  if (m.message?.imageMessage) return "[Image]"
-  if (m.message?.videoMessage) return "[Video]"
-  if (m.message?.audioMessage) return "[Audio]"
-  if (m.message?.documentMessage) return "[Document]"
-  if (m.message?.stickerMessage) return "[Sticker]"
+  if (m.message.conversation) return m.message.conversation
+  if (m.message.extendedTextMessage?.text) return m.message.extendedTextMessage.text
+  if (m.message.imageMessage?.caption) return m.message.imageMessage.caption
+  if (m.message.videoMessage?.caption) return m.message.videoMessage.caption
+  
+  if (m.message.imageMessage) return "[Image]"
+  if (m.message.videoMessage) return "[Video]"
+  if (m.message.audioMessage) return "[Audio]"
+  if (m.message.documentMessage) return "[Document]"
+  if (m.message.stickerMessage) return "[Sticker]"
   
   return "[Message]"
 }
 
-// Connect to WhatsApp (CLEAN VERSION)
+// Connect to WhatsApp
 const connectToWhatsApp = async () => {
   try {
     console.log(chalk.magenta("Starting WhatsApp connection..."))
     
-    // Load database
+    // Load database jika ada
     if (global.db && typeof global.db.read === 'function') {
-      await global.db.read()
+      await global.db.read().catch(() => {})
     }
     
     // Auth state
     const sessionFolder = './session'
-    const { state, saveCreds } = await useMultiFileAuthState(sessionFolder)
+    if (!existsSync(sessionFolder)) {
+      fs.mkdirSync(sessionFolder, { recursive: true })
+    }
     
-    // Store
-    const store = makeInMemoryStore({ logger: pino({ level: 'silent' }) })
+    const { state, saveCreds } = await useMultiFileAuthState(sessionFolder)
     
     // Version
     const { version } = await fetchLatestBaileysVersion()
     
-    // Socket config SESUAI DOCS
+    // Buat store sederhana
+    global.store = createSimpleStore()
+    
+    // Socket config
     const sockConfig = {
       version,
       auth: {
@@ -108,7 +124,7 @@ const connectToWhatsApp = async () => {
       },
       printQRInTerminal: !global.pairingCode,
       browser: Browsers.ubuntu('WhatsApp Bot'),
-      logger: pino({ level: 'silent' }),
+      logger: pino({ level: 'fatal' }),
       markOnlineOnConnect: true,
       syncFullHistory: false,
       generateHighQualityLinkPreview: true
@@ -117,32 +133,33 @@ const connectToWhatsApp = async () => {
     // Buat socket
     global.conn = makeWASocket(sockConfig)
     
-    // Bind store
-    store.bind(global.conn.ev)
+    // Bind store sederhana
+    if (global.store.bind) {
+      global.store.bind(global.conn.ev)
+    }
     
-    // Pairing Code handler SESUAI DOCS
-    if (global.pairingCode && !global.conn.authState.creds.registered) {
+    // Pairing Code handler
+    if (global.pairingCode && global.conn.authState && !global.conn.authState.creds.registered) {
       setTimeout(async () => {
         try {
           const code = await global.conn.requestPairingCode(global.nomerBot)
           const formattedCode = code?.match(/.{1,4}/g)?.join("-") || code
           
-          console.log(chalk.magenta(`📱 Pairing Code:`))
-          console.log(chalk.magenta(`For: ${global.nomerBot}`))
-          console.log(chalk.magenta(`Code: ${formattedCode}`))
+          console.log(chalk.magenta(`Pairing Code for ${global.nomerBot}:`))
+          console.log(chalk.magenta(`${formattedCode}`))
         } catch (err) {
-          console.log(chalk.red(`Error getting pairing code: ${err.message}`))
+          console.log(chalk.red(`Error: ${err.message}`))
         }
       }, 3000)
     }
     
-    // Event handling SESUAI DOCS
+    // Event handling
     global.conn.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect } = update
       
       if (connection === 'close') {
         const shouldReconnect = (lastDisconnect?.error instanceof Boom) 
-          ? lastDisconnect.error.output.statusCode !== DisconnectReason.loggedOut
+          ? lastDisconnect.error.output?.statusCode !== DisconnectReason.loggedOut
           : true
         
         if (shouldReconnect) {
@@ -150,16 +167,28 @@ const connectToWhatsApp = async () => {
           setTimeout(connectToWhatsApp, 5000)
         }
       } else if (connection === 'open') {
-        console.log(chalk.magenta("✓ Connected to WhatsApp"))
+        console.log(chalk.magenta("Connected"))
       }
       
+      // Call original connectionUpdate jika ada
       if (typeof connectionUpdate === 'function') {
-        await connectionUpdate(connectToWhatsApp, global.conn, update)
+        try {
+          await connectionUpdate(connectToWhatsApp, global.conn, update)
+        } catch (e) {}
       }
     })
     
     // Creds update
     global.conn.ev.on('creds.update', saveCreds)
+    
+    // Contacts update untuk store
+    global.conn.ev.on('contacts.upsert', (contacts) => {
+      if (global.store && global.store.contacts) {
+        contacts.forEach(contact => {
+          global.store.contacts[contact.id] = contact
+        })
+      }
+    })
     
     // Messages handler - CLEAN LOGGING
     global.conn.ev.on('messages.upsert', async ({ messages }) => {
@@ -167,16 +196,15 @@ const connectToWhatsApp = async () => {
         if (!messages || messages.length === 0) return
         
         const m = messages[0]
-        if (!m.message || m.key.fromMe) return
+        if (!m.message || m.key?.fromMe) return
         
         // Skip system messages
         if (m.key.remoteJid === 'status@broadcast') return
-        if (m.key.id?.startsWith('3EB0')) return
         
         // Get sender info
         const senderJid = m.key.remoteJid
         const participant = m.key.participant
-        const isGroup = senderJid.endsWith('@g.us')
+        const isGroup = senderJid?.endsWith('@g.us')
         
         // Get display name
         let displayName = await getSenderName(
@@ -190,88 +218,103 @@ const connectToWhatsApp = async () => {
         // CLEAN LOG OUTPUT - NO BORDER, NO EXTRA INFO
         console.log(
           chalk.magenta(`${displayName}: `) + 
-          chalk.white(messageText)
+          chalk.white(messageText.substring(0, 200)) // Limit panjang pesan
         )
         
-        // Process message
-        const processedMsg = await smsg(global.conn, m)
-        
-        // Load handler jika ada
-        try {
-          const { handler } = await import(`./handler.js?v=${Date.now()}`)
-          if (handler && typeof handler === 'function') {
-            await handler(global.conn, processedMsg, { messages }, store)
+        // Process message jika smsg ada
+        if (typeof smsg === 'function') {
+          try {
+            const processedMsg = await smsg(global.conn, m)
+            
+            // Load handler jika ada
+            try {
+              const { handler } = await import(`./handler.js?v=${Date.now()}`)
+              if (handler && typeof handler === 'function') {
+                await handler(global.conn, processedMsg, { messages })
+              }
+            } catch (e) {
+              // Handler tidak ditemukan, tidak masalah
+            }
+          } catch (e) {
+            // Error processing, continue
           }
-        } catch (e) {
-          // Handler tidak ditemukan, lanjutkan saja
         }
         
       } catch (err) {
-        console.log(chalk.red(`Message error: ${err.message}`))
+        console.log(chalk.red(`Error: ${err.message}`))
       }
     })
     
     // Anti call
     global.conn.ev.on('call', async (node) => {
       if (typeof antiCall === 'function') {
-        antiCall(global.db, node, global.conn)
+        try {
+          antiCall(global.db, node, global.conn)
+        } catch (e) {}
       }
     })
     
     // Group participants update
     global.conn.ev.on('group-participants.update', async (event) => {
       if (typeof memberUpdate === 'function') {
-        memberUpdate(global.conn, event)
+        try {
+          memberUpdate(global.conn, event)
+        } catch (e) {}
       }
     })
     
-    // Load plugins
+    // Load plugins jika ada
     const pluginFolder = path.join(__dirname, "./plugins")
     global.plugins = {}
     
     if (existsSync(pluginFolder)) {
-      async function loadPlugins(folder) {
-        const files = readdirSync(folder)
+      try {
+        const files = readdirSync(pluginFolder)
         for (const file of files) {
-          const filePath = join(folder, file)
-          const stat = statSync(filePath)
-          
-          if (stat.isDirectory()) {
-            await loadPlugins(filePath)
-          } else if (file.endsWith('.js')) {
+          if (file.endsWith('.js')) {
             try {
-              const module = await import(`file://${filePath}`)
+              const module = await import(`file://${join(pluginFolder, file)}`)
               global.plugins[file] = module.default || module
             } catch (e) {
-              // Skip error
+              // Skip plugin errors
             }
           }
         }
-      }
-      
-      await loadPlugins(pluginFolder)
+      } catch (e) {}
     }
     
-    // Initialize function
+    // Initialize function jika ada
     if (typeof Function === 'function') {
-      Function(global.conn)
+      try {
+        Function(global.conn)
+      } catch (e) {}
     }
     
     return global.conn
     
   } catch (err) {
-    console.log(chalk.red(`Connection failed: ${err.message}`))
+    console.log(chalk.red(`Connection error: ${err.message}`))
     // Restart setelah 10 detik
     setTimeout(connectToWhatsApp, 10000)
+    throw err
   }
 }
 
-// Start connection
-connectToWhatsApp()
+// Start connection dengan error handling
+connectToWhatsApp().catch(err => {
+  console.log(chalk.red(`Startup failed: ${err.message}`))
+})
 
 // Error handling
 process.on('uncaughtException', (err) => {
-  const msg = err.message
-  if (msg.includes('Socket') || msg.includes('Connection') || msg.includes('Timed Out')) return
+  const msg = err.message || String(err)
+  // Skip common connection errors
+  if (msg.includes('Socket') || msg.includes('Connection') || msg.includes('ECONN')) {
+    return
+  }
   console.log(chalk.red(`Error: ${msg}`))
+})
+
+process.on('warning', (warning) => {
+  console.log(chalk.yellow(`Warning: ${warning.message}`))
 })
