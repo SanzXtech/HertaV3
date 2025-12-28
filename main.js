@@ -2,7 +2,7 @@
 
 import "./settings.js";
 
-// FIX 1: IMPORT BAILEYS VERSI TERBARU (7.x) YANG BENAR
+// ✅ FIX: IMPORT BAILEYS V7 YANG BENAR
 import makeWASocket, {
   useMultiFileAuthState,
   makeCacheableSignalKeyStore,
@@ -13,7 +13,7 @@ import makeWASocket, {
 
 import fs, { readdirSync, existsSync, readFileSync, watch, statSync } from "fs";
 import logg from "pino";
-import { smsg, protoType, store} from "./lib/simple.js"; // use persistent store from lib/simple.js
+import { smsg, protoType, store } from "./lib/simple.js"; // use persistent store from lib/simple.js
 import CFonts from "cfonts";
 import path, { join, dirname, basename } from "path";
 import { memberUpdate, groupsUpdate } from "./message/group.js";
@@ -63,7 +63,7 @@ const pairingCode = false;
 const useMobile = process.argv.includes("--mobile");
 const msgRetryCounterCache = new NodeCache();
 
-// FIX 2: BUAT MESSAGERETRYMAP MANUAL UNTUK VERSI 7.x
+// ✅ FIX: BUAT MESSAGERETRYMAP MANUAL
 const msgRetryCounterMap = {
   get: (key) => {
     const counter = msgRetryCounterCache.get(key) || 0;
@@ -126,15 +126,13 @@ const extractMessageText = (msg) => {
 const connectToWhatsApp = async () => {
   await (await import("./message/database.js")).default();
 
-  // FIX 3: PASTIKAN SESSION PATH BENAR
+  // ✅ FIX: PASTIKAN SESSION PATH BENAR
   const sessionPath = global.session || './session';
   const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
 
-  // use persistent store exported from ./lib/simple.js
-  // store already created in lib/simple.js and implements loadMessage & bind
-
-  const { version, isLatest } = await fetchLatestBaileysVersion();
-
+  // ✅ FIX: HAPUS fetchLatestBaileysVersion - BAILEYS V7 TIDAK PERLU
+  const version = [2, 2413, 1]; // Versi dummy untuk kompatibilitas
+  
   // Function agar pesan bot tidak pending
   const getMessage = async (key) => {
     if (store) {
@@ -176,16 +174,16 @@ const connectToWhatsApp = async () => {
     return message;
   };
 
-  // FIX 4: GANTI Socket MENJADI makeWASocket DENGAN CONFIG YANG BENAR
+  // ✅ FIX: CONFIG BAILEYS V7 YANG BENAR
   const connectionOptions = {
-    version,
+    version, // Versi dummy tetap disertakan untuk kompatibilitas
     printQRInTerminal: !global.pairingCode,
     patchMessageBeforeSending,
     logger: logg({ level: "fatal" }),
     auth,
     browser: Browsers.ubuntu('Chrome'),
     getMessage,
-    msgRetryCounterMap, // PAKAI YANG BARU
+    msgRetryCounterMap,
     keepAliveIntervalMs: 20000,
     defaultQueryTimeoutMs: undefined,
     connectTimeoutMs: 30000,
@@ -197,12 +195,12 @@ const connectToWhatsApp = async () => {
     msgRetryCounterCache,
   };
 
-  // FIX 5: GANTI Socket() MENJADI makeWASocket()
+  // ✅ FIX: BUAT KONEKSI
   global.conn = makeWASocket(connectionOptions);
 
   store.bind(conn.ev);
 
-  // FIX 6: PAIRING CODE YANG BENAR (CLEAN LOGGING)
+  // ✅ FIX: PAIRING CODE YANG BENAR
   if (global.pairingCode && !conn.authState.creds.registered) {
     setTimeout(async () => {
       try {
@@ -211,10 +209,10 @@ const connectToWhatsApp = async () => {
         const formattedCode = code.length === 8 ? 
           `${code.substring(0, 4)}-${code.substring(4)}` : code;
         
-        console.log(chalk.magenta(`ðŸ“± Pairing Code:`));
+        console.log(chalk.magenta(`📱 Pairing Code:`));
         console.log(chalk.magenta(`For: ${global.nomerBot}`));
         console.log(chalk.magenta(`Code: ${formattedCode}`));
-        console.log(chalk.magenta(`â³ Masukkan di WhatsApp > Linked Devices`));
+        console.log(chalk.magenta(`⏣ Masukkan di WhatsApp > Linked Devices`));
       } catch (err) {
         console.log(chalk.red(`Error: ${err.message}`));
         console.log(chalk.red(`Pastikan nomor ${global.nomerBot} benar (tanpa +)`));
@@ -222,7 +220,7 @@ const connectToWhatsApp = async () => {
     }, 3000);
   }
 
-  // FIX 7: EVENT HANDLING YANG BENAR UNTUK VERSI 7.x
+  // ✅ FIX: EVENT HANDLING
   conn.ev.on('connection.update', async (update) => {
     if (global.db && global.db.data == null) {
       const loadDatabase = (await import("./message/database.js")).default;
