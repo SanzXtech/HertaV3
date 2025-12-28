@@ -2,12 +2,14 @@
 
 import "./settings.js";
 
-// ✅ SOLUSI: Gunakan dynamic import untuk menghindari masalah export
-let makeWASocket, useMultiFileAuthState, makeCacheableSignalKeyStore, 
+// ✅ DYNAMIC IMPORT UNTUK SEMUA VERSI BAILEYS
+import chalk from "chalk";
+import { Boom } from "@hapi/boom";
+
+let makeWASocket, useMultiFileAuthState, makeCacheableSignalKeyStore,
     fetchLatestBaileysVersion, DisconnectReason, Browsers, proto;
 
 try {
-    // Dynamic import untuk menghandle semua versi Baileys
     const baileysModule = await import('@whiskeysockets/baileys');
     
     // Handle both v6 and v7 export styles
@@ -19,9 +21,9 @@ try {
     Browsers = baileysModule.Browsers;
     proto = baileysModule.proto;
     
-    console.log('✅ Baileys module loaded successfully');
+    console.log(chalk.green('✅') + chalk.cyan(' Baileys module loaded successfully'));
 } catch (error) {
-    console.error('❌ Failed to load Baileys module:', error.message);
+    console.error(chalk.red('❌') + chalk.yellow(' Failed to load Baileys module:'), error.message);
     process.exit(1);
 }
 
@@ -41,9 +43,7 @@ import { platform } from "process";
 import syntaxerror from "syntax-error";
 import { format } from "util";
 import chokidar from "chokidar";
-import chalk from "chalk";
 import util from "util";
-import { Boom } from "@hapi/boom";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -64,17 +64,6 @@ global.__require = function require(dir = import.meta.url) {
 
 protoType();
 
-let phoneNumber = "916909137213";
-const readline = require("readline");
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
-const question = (text) => new Promise((resolve) => rl.question(text, resolve));
-
-const pairingCode = false;
-const useMobile = process.argv.includes("--mobile");
-
 const msgRetryCounterCache = new NodeCache();
 
 CFonts.say("fearless", {
@@ -83,9 +72,9 @@ CFonts.say("fearless", {
   gradient: ["red", "magenta"],
 });
 
-// ✅ SIMPLE makeInMemoryStore IMPLEMENTATION (tanpa import)
+// ✅ SIMPLE STORE IMPLEMENTATION
 const makeSimpleInMemoryStore = () => {
-  console.log('📦 Using simple in-memory store implementation');
+  console.log(chalk.cyan('📦') + chalk.white(' Using simple in-memory store implementation'));
   return {
     messages: {},
     chats: {},
@@ -93,8 +82,7 @@ const makeSimpleInMemoryStore = () => {
     groupMetadata: {},
     presences: {},
     bind: function(ev) {
-      console.log('🔗 Store bound to events');
-      // You can bind events here if needed
+      console.log(chalk.cyan('🔗') + chalk.white(' Store bound to events'));
     },
     loadMessage: async function(remoteJid, id) {
       return this.messages[remoteJid]?.[id] || null;
@@ -105,43 +93,40 @@ const makeSimpleInMemoryStore = () => {
       }
       this.messages[remoteJid][message.key.id] = message;
     },
-    // Add other store methods as needed
   };
 };
 
-// Connect to WhatsApp
+// ✅ CONNECT TO WHATSAPP FUNCTION
 const connectToWhatsApp = async () => {
   try {
-    // Import database (jika ada)
+    // Import database
     try {
       await (await import("./message/database.js")).default();
     } catch (error) {
-      console.log("⚠️ Database module not found or error, continuing...");
+      console.log(chalk.yellow('⚠️') + chalk.white(' Database module not found or error, continuing...'));
     }
 
     // Setup session
     const sessionFolder = './session';
     
-    // Buat folder session jika belum ada
     if (!fs.existsSync(sessionFolder)) {
       fs.mkdirSync(sessionFolder, { recursive: true });
     }
     
     const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
 
-    // Use simple store instead of makeInMemoryStore
     const store = makeSimpleInMemoryStore();
 
-    // Try to get version if function exists
-    let version = [2, 2413, 1]; // Default version
+    // Get WhatsApp version
+    let version = [2, 2413, 1];
     try {
       if (fetchLatestBaileysVersion) {
         const versionInfo = await fetchLatestBaileysVersion();
         version = versionInfo.version;
-        console.log(`📱 Using WhatsApp version: ${version.join('.')}`);
+        console.log(chalk.blue('📱') + chalk.white(` Using WhatsApp version: ${chalk.green(version.join('.'))}`));
       }
     } catch (error) {
-      console.log(`📱 Using default WhatsApp version: ${version.join('.')}`);
+      console.log(chalk.blue('📱') + chalk.white(` Using default WhatsApp version: ${chalk.yellow(version.join('.'))}`));
     }
 
     // Function to get message
@@ -190,10 +175,14 @@ const connectToWhatsApp = async () => {
       return message;
     };
 
+    // ✅ PAIRING CODE SUPPORT - Sesuai settings.js
+    const printQR = !global.pairingCode; // Jika pairingCode = true, maka QR = false
+    const phoneNumber = global.nomerBot ? global.nomerBot.replace(/\D/g, '') : "";
+
     // Connection options
     const connectionOptions = {
       version,
-      printQRInTerminal: !global.pairingCode,
+      printQRInTerminal: printQR, // ✅ QR atau Pairing Code
       patchMessageBeforeSending,
       logger: logg({ level: "fatal" }),
       auth,
@@ -212,12 +201,43 @@ const connectToWhatsApp = async () => {
     // Create socket
     global.conn = makeWASocket(connectionOptions);
 
+    // ✅ HANDLE PAIRING CODE
+    if (global.pairingCode && !conn.authState?.creds?.registered) {
+      if (phoneNumber) {
+        setTimeout(async () => {
+          try {
+            console.log(chalk.yellow('🔄') + chalk.white(' Requesting pairing code...'));
+            let code = await conn.requestPairingCode(phoneNumber);
+            code = code?.match(/.{1,4}/g)?.join("-") || code;
+            
+            console.log('\n' + chalk.bgGreen(chalk.black('='.repeat(50))));
+            console.log(chalk.bgGreen(chalk.black('    PAIRING CODE INFORMATION    ')));
+            console.log(chalk.bgGreen(chalk.black('='.repeat(50))));
+            console.log(chalk.green('📱 Phone Number:') + chalk.white(` ${global.nomerBot}`));
+            console.log(chalk.green('🔑 Pairing Code:') + chalk.white(` ${code}`));
+            console.log(chalk.bgGreen(chalk.black('='.repeat(50))) + '\n');
+            
+            console.log(chalk.yellow('💡') + chalk.white(' Instructions:'));
+            console.log(chalk.white('1. Open WhatsApp on your phone'));
+            console.log(chalk.white('2. Go to Settings → Linked Devices'));
+            console.log(chalk.white('3. Tap "Link a Device"'));
+            console.log(chalk.white('4. Enter the pairing code above'));
+            
+          } catch (error) {
+            console.log(chalk.red('❌') + chalk.white(' Error getting pairing code:'), error.message);
+          }
+        }, 3000);
+      } else {
+        console.log(chalk.red('❌') + chalk.white(' Phone number not found in settings.js'));
+      }
+    }
+
     // Handle connection updates
     conn.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
       
-      if (qr) {
-        console.log('📱 QR Code generated, please scan!');
+      if (qr && !global.pairingCode) {
+        console.log(chalk.blue('📱') + chalk.white(' QR Code generated, please scan!'));
       }
       
       if (connection === 'close') {
@@ -228,14 +248,14 @@ const connectToWhatsApp = async () => {
           shouldReconnect = statusCode !== DisconnectReason.loggedOut;
         }
         
-        console.log(`❌ Connection closed. Reconnecting: ${shouldReconnect}`);
+        console.log(chalk.red('❌') + chalk.white(` Connection closed. Reconnecting: ${shouldReconnect ? 'Yes' : 'No'}`));
         
         if (shouldReconnect) {
           setTimeout(connectToWhatsApp, 5000);
         }
       } else if (connection === 'open') {
-        console.log('✅ WhatsApp connected successfully!');
-        console.log('👤 User ID:', conn.user?.id);
+        console.log(chalk.green('✅') + chalk.white(' WhatsApp connected successfully!'));
+        console.log(chalk.cyan('👤') + chalk.white(` User: ${conn.user?.name || conn.user?.id}`));
         
         // Update presence
         try {
@@ -291,11 +311,11 @@ const connectToWhatsApp = async () => {
           const { handler } = await import(`./handler.js?v=${Date.now()}`);
           await handler(conn, m, { messages, type }, store);
         } catch (err) {
-          console.log('⚠️ Handler error:', err.message);
+          console.log(chalk.yellow('⚠️') + chalk.white(' Handler error:'), err.message);
         }
         
       } catch (err) {
-        console.log('⚠️ Error processing message:', err.message);
+        console.log(chalk.yellow('⚠️') + chalk.white(' Error processing message:'), err.message);
         if (global.ownerBot) {
           try {
             await conn.sendMessage(global.ownerBot, { text: `Error: ${err.message}` });
@@ -313,7 +333,7 @@ const connectToWhatsApp = async () => {
           await antiCall({}, node, conn);
         }
       } catch (error) {
-        console.log('⚠️ Error handling call:', error.message);
+        console.log(chalk.yellow('⚠️') + chalk.white(' Error handling call:'), error.message);
       }
     });
 
@@ -324,16 +344,18 @@ const connectToWhatsApp = async () => {
           await memberUpdate(conn, anu);
         }
       } catch (error) {
-        console.log('⚠️ Error handling group update:', error.message);
+        console.log(chalk.yellow('⚠️') + chalk.white(' Error handling group update:'), error.message);
       }
     });
 
-    console.log("🚀 WhatsApp Bot is ready and waiting for QR scan!");
+    console.log(chalk.green('🚀') + chalk.cyan(' WhatsApp Bot is ready!'));
+    console.log(chalk.yellow('📌') + chalk.white(` Mode: ${global.pairingCode ? 'Pairing Code' : 'QR Code'}`));
+    
     return conn;
 
   } catch (error) {
-    console.log("❌ Error connecting to WhatsApp:", error.message);
-    console.log("🔄 Reconnecting in 5 seconds...");
+    console.log(chalk.red('❌') + chalk.white(' Error connecting to WhatsApp:'), error.message);
+    console.log(chalk.yellow('🔄') + chalk.white(' Reconnecting in 5 seconds...'));
     setTimeout(connectToWhatsApp, 5000);
   }
 };
@@ -341,7 +363,7 @@ const connectToWhatsApp = async () => {
 // Start the bot
 connectToWhatsApp();
 
-// Error handling
+// Error handling dengan warna
 process.on("uncaughtException", function (err) {
   let e = String(err);
   const ignorableErrors = [
@@ -357,9 +379,9 @@ process.on("uncaughtException", function (err) {
   
   if (ignorableErrors.some(error => e.includes(error))) return;
   
-  console.log("⚠️ Uncaught Exception:", err.message);
+  console.log(chalk.red('⚠️') + chalk.white(' Uncaught Exception:'), err.message);
 });
 
 process.on("unhandledRejection", (reason, promise) => {
-  console.log("⚠️ Unhandled Rejection:", reason);
+  console.log(chalk.red('⚠️') + chalk.white(' Unhandled Rejection:'), reason);
 });
