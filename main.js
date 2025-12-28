@@ -6,7 +6,6 @@ import "./settings.js";
 import makeWASocket, {
   useMultiFileAuthState,
   makeCacheableSignalKeyStore,
-  fetchLatestBaileysVersion,
   DisconnectReason,
   Browsers,
   getAggregateVotesInPollMessage
