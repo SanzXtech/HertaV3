@@ -40,7 +40,7 @@
     "archiver": "^7.0.1",
     "awesome-phonenumber": "^2.48.0",
     "axios": "^1.6.0",
-    "baileys": "npm:@whiskeysockets/baileys@7.0.0-rc.6",
+    "baileys": "npm:@rexxhayanasi/elaina-baileys@1.1.0-DEV.2",
     "canvafy": "^7.1.0",
     "cfonts": "^3.1.1",
     "chalk": "^5.3.0",
